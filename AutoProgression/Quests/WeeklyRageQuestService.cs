@@ -248,7 +248,7 @@ internal sealed class WeeklyRageQuestService
     {
         foreach (WeeklyQuest quest in quests)
         {
-            if (quest.questType == QuestType.KillEnemiesWithRageMode &&
+            if (QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesWithRageMode &&
                 quest.questGoal == PreferredGoal)
                 return true;
         }
@@ -260,7 +260,7 @@ internal sealed class WeeklyRageQuestService
     {
         foreach (WeeklyQuest quest in quests)
         {
-            if (quest.questType == QuestType.KillEnemiesWithRageMode)
+            if (QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesWithRageMode)
                 return quest;
         }
 

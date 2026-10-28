@@ -67,7 +67,7 @@ internal sealed class DailyQuestFilterService
             protectedQuestIds.Add(completedId);
             ProgressionLog.Debug(
                 $"Generated Daily Quest filtering skipped a completed quest: " +
-                $"Id={completedId}, Type={target.questType}.");
+                $"Id={completedId}, Type={QuestCompat.Kind(target)}.");
             target = null;
             completionVerificationPending = true;
             rerollReadyAt = Time.unscaledTime + PostRerollSettleSeconds;
@@ -96,7 +96,7 @@ internal sealed class DailyQuestFilterService
 
             ProgressionLog.Debug(
                 $"Rerolling generated Daily Quest: Id={targetId}, " +
-                $"Type={target.questType}, Name={target.name}.");
+                $"Type={QuestCompat.Kind(target)}, Name={target.name}.");
             reroll.RewardForShowing();
         }
         catch (Exception exception)
@@ -238,17 +238,17 @@ internal sealed class DailyQuestFilterService
         if (quest == null) return false;
         if (HasGoblinObjective(quest)) return true;
 
-        return quest.questType is QuestType.ChestHuntChests or
-            QuestType.HitRandomBoxes or
-            QuestType.HitRandomSilverBoxes or
-            QuestType.Boost or
-            QuestType.UseRageMode or
-            QuestType.BonusStage or
-            QuestType.BonusStageSections or
-            QuestType.CraftTemporaryItems or
-            QuestType.GetMaterials or
-            QuestType.CompleteAscendingHeights or
-            QuestType.CompleteGrappleRuns;
+        return QuestCompat.Kind(quest) is LegacyQuestType.ChestHuntChests or
+            LegacyQuestType.HitRandomBoxes or
+            LegacyQuestType.HitRandomSilverBoxes or
+            LegacyQuestType.Boost or
+            LegacyQuestType.UseRageMode or
+            LegacyQuestType.BonusStage or
+            LegacyQuestType.BonusStageSections or
+            LegacyQuestType.CraftTemporaryItems or
+            LegacyQuestType.GetMaterials or
+            LegacyQuestType.CompleteAscendingHeights or
+            LegacyQuestType.CompleteGrappleRuns;
     }
 
     private static bool HasGoblinObjective(Quest quest)

@@ -100,7 +100,7 @@ internal sealed class QuestAutomationService
             }
         }
 
-        var quests = questsList.lastScrollListData;
+        var quests = QuestCompat.ListedQuests(questsList);
         if (quests == null)
         {
             LogMissing();
@@ -159,7 +159,7 @@ internal sealed class QuestAutomationService
         }
 
         // Daily and Weekly candidates come from their authoritative live
-        // ScriptableObjects instead of QuestsList.lastScrollListData.
+        // ScriptableObjects instead of QuestCompat.ListedQuests(QuestsList).
         foreach (DailyQuest daily in Resources.FindObjectsOfTypeAll<DailyQuest>())
         {
             if (daily == null || !daily.active || daily.isClaimed)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AutoProgression.Diagnostics;
 using AutoProgression.Materials;
+using AutoProgression.Quests;
 using Il2Cpp;
 using UnityEngine;
 
@@ -261,7 +262,7 @@ internal sealed class QuestAssistCraftableService
     private List<Quest> SnapshotNormalQuests()
     {
         questsList ??= QuestsList.instance ?? FindLoadedQuestList();
-        var source = questsList?.lastScrollListData;
+        var source = QuestCompat.ListedQuests(questsList);
         List<Quest> result = new();
         if (source == null) return result;
 
@@ -309,7 +310,7 @@ internal sealed class QuestAssistCraftableService
         HashSet<int> seen = new();
 
         QuestsList list = QuestsList.instance ?? FindLoadedQuestList();
-        var visible = list?.lastScrollListData;
+        var visible = QuestCompat.ListedQuests(list);
         if (visible == null)
             return "current quest data is not available yet";
 
@@ -328,10 +329,10 @@ internal sealed class QuestAssistCraftableService
         HashSet<int> seen)
     {
         if (quest == null ||
-            quest.questType is not (
-                QuestType.HitRandomBoxes or
-                QuestType.HitRandomSilverBoxes or
-                QuestType.HitRandomGoldenBoxes))
+            QuestCompat.Kind(quest) is not (
+                LegacyQuestType.HitRandomBoxes or
+                LegacyQuestType.HitRandomSilverBoxes or
+                LegacyQuestType.HitRandomGoldenBoxes))
             return false;
 
         try
@@ -386,8 +387,8 @@ internal sealed class QuestAssistCraftableService
 
     private static bool NeedsSpecialRandomBox(Quest quest) =>
         HasGoblinObjective(quest) ||
-        quest.questType is QuestType.BonusStage or
-            QuestType.BonusStageSections;
+        QuestCompat.Kind(quest) is LegacyQuestType.BonusStage or
+            LegacyQuestType.BonusStageSections;
 
     private static bool ContainsGoblin(Enemy enemy)
     {
@@ -406,7 +407,7 @@ internal sealed class QuestAssistCraftableService
 
     private static bool HasChestHuntObjective(Quest quest)
     {
-        string type = quest.questType.ToString();
+        string type = QuestCompat.Kind(quest).ToString();
         return ContainsText(type, "chesthunt") ||
                ContainsText(quest.name, "chest_hunt") ||
                ContainsText(quest.name, "chesthunt");
