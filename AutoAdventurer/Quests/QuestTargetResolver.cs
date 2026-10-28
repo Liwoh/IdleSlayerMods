@@ -60,7 +60,7 @@ internal sealed class QuestTargetResolver
             if (quest is DailyQuest daily &&
                 (!daily.active || !daily.CheckIfIsValid())) return false;
             bool explicitElementQuest =
-                quest.questType == QuestType.KillEnemiesOfType &&
+                QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesOfType &&
                 quest.enemyType != null;
             // CanBeCompleted() is not authoritative for explicit elemental
             // objectives. The game may return false under a different active
@@ -70,7 +70,7 @@ internal sealed class QuestTargetResolver
             // against actual current evolution stages and unlocked maps below.
             if (!explicitElementQuest && !quest.CanBeCompleted()) return false;
             bool characterQuest =
-                quest.questType == QuestType.KillEnemiesWithCharacter ||
+                QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesWithCharacter ||
                 quest.characterRequired != null;
             if (characterQuest && (quest.characterRequired == null ||
                                    !quest.characterRequired.unlocked))
@@ -82,24 +82,24 @@ internal sealed class QuestTargetResolver
                 return false;
             }
 
-            bool killType = quest.questType is QuestType.KillEnemies or
-                QuestType.KillEnemiesWithArrows or
-                QuestType.KillFlyers or
-                QuestType.KillGiants or
-                QuestType.KillEnemiesWithRageMode or
-                QuestType.KillEnemiesWithCharacter or
-                QuestType.KillEnemiesOfType or
-                QuestType.KillShinyEnemies or
-                QuestType.WindDashKills;
+            bool killType = QuestCompat.Kind(quest) is LegacyQuestType.KillEnemies or
+                LegacyQuestType.KillEnemiesWithArrows or
+                LegacyQuestType.KillFlyers or
+                LegacyQuestType.KillGiants or
+                LegacyQuestType.KillEnemiesWithRageMode or
+                LegacyQuestType.KillEnemiesWithCharacter or
+                LegacyQuestType.KillEnemiesOfType or
+                LegacyQuestType.KillShinyEnemies or
+                LegacyQuestType.WindDashKills;
             if (!killType) return false;
 
             // Exact targets, native types, provable map categories, and
             // generic arrow kills are executable without parsing text.
             return quest.enemyToKill != null ||
                    explicitElementQuest ||
-                   quest.questType == QuestType.KillFlyers ||
-                   quest.questType == QuestType.KillGiants ||
-                   quest.questType == QuestType.KillEnemiesWithArrows ||
+                   QuestCompat.Kind(quest) == LegacyQuestType.KillFlyers ||
+                   QuestCompat.Kind(quest) == LegacyQuestType.KillGiants ||
+                   QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesWithArrows ||
                    characterQuest;
         }
         catch
@@ -120,19 +120,19 @@ internal sealed class QuestTargetResolver
                 preferredMapId);
 
         Func<Enemy, bool> predicate;
-        if (quest.questType == QuestType.KillEnemiesOfType &&
+        if (QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesOfType &&
             quest.enemyType != null)
         {
             EnemyType requiredType = quest.enemyType;
             predicate = enemy => SameEnemyType(enemy?.type, requiredType);
         }
-        else if (quest.questType == QuestType.KillFlyers)
+        else if (QuestCompat.Kind(quest) == LegacyQuestType.KillFlyers)
             predicate = enemy => enemy?.isFlying == true;
-        else if (quest.questType == QuestType.KillGiants)
+        else if (QuestCompat.Kind(quest) == LegacyQuestType.KillGiants)
             predicate = enemy => enemy?.isGiant == true;
-        else if (quest.questType == QuestType.KillEnemiesWithArrows)
+        else if (QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesWithArrows)
             predicate = enemy => enemy != null;
-        else if (quest.questType == QuestType.KillEnemiesWithCharacter ||
+        else if (QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesWithCharacter ||
                  quest.characterRequired != null)
             predicate = enemy => enemy != null;
         else
@@ -179,7 +179,7 @@ internal sealed class QuestTargetResolver
         Enemy currentEnemy = FindMatchingQuestEnemy(
             currentMap, quest, predicate);
         if (currentEnemy == null &&
-            quest.questType == QuestType.KillGiants &&
+            QuestCompat.Kind(quest) == LegacyQuestType.KillGiants &&
             !string.IsNullOrEmpty(preferredMapId) &&
             string.Equals(currentMap.name, preferredMapId,
                 StringComparison.Ordinal))
@@ -212,7 +212,7 @@ internal sealed class QuestTargetResolver
                 Enemy matched = FindMatchingQuestEnemy(
                     preferred, quest, predicate);
                 if (matched == null &&
-                    quest.questType == QuestType.KillGiants)
+                    QuestCompat.Kind(quest) == LegacyQuestType.KillGiants)
                     matched = FindUnlockedGiantInEvolutionChains(preferred);
                 if (matched != null)
                     return CreateSelection(quest, matched, preferred);
@@ -312,7 +312,7 @@ internal sealed class QuestTargetResolver
         Enemy current = FindMatchingCurrentEnemy(map, predicate);
         if (current != null) return current;
 
-        if (quest?.questType == QuestType.KillEnemiesOfType &&
+        if (quest != null && QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesOfType &&
             quest.enemyType != null)
         {
             EnemyType activeElementType = GetActiveElementType();
@@ -414,7 +414,7 @@ internal sealed class QuestTargetResolver
 
     private void LogUnresolvedElementQuestOnce(Quest quest)
     {
-        if (quest?.questType != QuestType.KillEnemiesOfType ||
+        if (quest == null || QuestCompat.Kind(quest) != LegacyQuestType.KillEnemiesOfType ||
             quest.enemyType == null) return;
         string key = QuestTargetSelection.BuildLockKey(quest);
         if (!loggedUnresolvedElementQuests.Add(key)) return;

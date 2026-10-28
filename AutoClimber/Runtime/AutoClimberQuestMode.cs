@@ -93,6 +93,53 @@ internal static class AutoClimberQuestMode
         return "Auto";
     }
 
+    // The October 2026 game update split QuestsList.lastScrollListData into
+    // one list per quest section. Sections also hold quests the panel hides
+    // (e.g. every event's quests), so only live quests are kept.
+    private static List<Quest> CollectListedQuests(QuestsList list)
+    {
+        if (list == null)
+        {
+            return null;
+        }
+
+        List<Quest> quests = new List<Quest>();
+        AddQuests(quests, list.mainQuests);
+        AddQuests(quests, list.dailyQuests);
+        AddQuests(quests, list.weeklyQuests);
+        AddQuests(quests, list.eventQuests);
+
+        if (list.collabQuests != null)
+        {
+            foreach (var entry in list.collabQuests)
+            {
+                AddQuests(quests, entry.Value);
+            }
+        }
+
+        return quests;
+    }
+
+    private static void AddQuests(
+        List<Quest> target,
+        Il2CppSystem.Collections.Generic.List<Quest> source)
+    {
+        if (source == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < source.Count; index++)
+        {
+            Quest quest = source[index];
+
+            if (quest != null && quest.CanBeCompletedOrClaimed())
+            {
+                target.Add(quest);
+            }
+        }
+    }
+
     private static bool HasIncompleteAscendingEnemyQuest(
         out bool questDataAvailable)
     {
@@ -112,8 +159,7 @@ internal static class AutoClimberQuestMode
         }
 
         HashSet<int> inspected = new HashSet<int>();
-        QuestsList list = QuestsList.instance;
-        var quests = list?.lastScrollListData;
+        List<Quest> quests = CollectListedQuests(QuestsList.instance);
 
         if (quests != null)
         {
