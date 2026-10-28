@@ -54,7 +54,7 @@ internal sealed class QuestElementService
                 : FindLoadedQuestList();
         resolvedQuestList = list;
 
-        var cached = list?.lastScrollListData;
+        var cached = QuestCompat.ListedQuests(list);
         if (cached == null) return false;
         for (int index = 0; index < cached.Count; index++)
             AddActiveElementQuest(cached[index], quests, seen);
@@ -470,7 +470,7 @@ internal sealed class QuestElementService
             // only active, incomplete quests.
             if (quest.characterRequired != null &&
                 !quest.characterRequired.unlocked) return false;
-            return (quest.questType == QuestType.KillEnemiesOfType &&
+            return (QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesOfType &&
                     quest.enemyType != null) || quest.enemyToKill != null;
         }
         catch
@@ -483,7 +483,7 @@ internal sealed class QuestElementService
         Quest quest, List<Divinity> elemental)
     {
         if (quest == null) return null;
-        if (quest.questType == QuestType.KillEnemiesOfType &&
+        if (QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesOfType &&
             quest.enemyType != null)
             return quest.enemyType;
 

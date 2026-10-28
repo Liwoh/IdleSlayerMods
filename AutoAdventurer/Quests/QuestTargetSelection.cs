@@ -42,13 +42,13 @@ internal sealed class QuestTargetSelection
             : LogText.Normalize(Quest.localizedName);
     internal string EnemyId => Enemy?.name ?? "AnyEnemy";
     internal string MapId => Map?.name ?? "UnknownMap";
-    internal string QuestTypeId => Quest?.questType.ToString() ?? "UnknownQuestType";
+    internal string QuestTypeId => Quest != null ? QuestCompat.Kind(Quest).ToString() : "UnknownQuestType";
     internal string ObjectiveId => Quest?.enemyToKill?.name ??
         Quest?.enemyType?.name ?? QuestTypeId;
     internal string RuntimeType =>
         Quest?.GetIl2CppType()?.Name ?? "UnknownRuntimeType";
     internal bool SuppressesAutomaticRage =>
-        Quest?.questType == QuestType.KillEnemiesWithArrows;
+        Quest != null && QuestCompat.Kind(Quest) == LegacyQuestType.KillEnemiesWithArrows;
     internal CharacterSkin RequiredCharacter => Quest?.characterRequired;
     internal string RequiredCharacterId =>
         RequiredCharacter?.name ?? string.Empty;
@@ -169,6 +169,6 @@ internal sealed class QuestTargetSelection
         string enemyType = quest.enemyType?.name ?? string.Empty;
         string character = quest.characterRequired?.name ?? string.Empty;
         string goal = quest.questGoal.ToString(CultureInfo.InvariantCulture);
-        return $"{runtimeType}|{quest.name}|{quest.questType}|{enemy}|{enemyType}|{character}|{goal}";
+        return $"{runtimeType}|{quest.name}|{QuestCompat.Kind(quest)}|{enemy}|{enemyType}|{character}|{goal}";
     }
 }

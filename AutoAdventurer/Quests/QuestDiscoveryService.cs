@@ -40,13 +40,13 @@ internal sealed class QuestDiscoveryService
             }
         }
 
-        var source = questsList?.lastScrollListData;
+        var source = QuestCompat.ListedQuests(questsList);
         if (source == null && Time.unscaledTime >= nextSafeRefreshTime)
         {
             nextSafeRefreshTime = Time.unscaledTime + 30f;
             if (TryRefreshInactiveList(questsList,
                     "Quest list: initialized while the quest panel was closed."))
-                source = questsList.lastScrollListData;
+                source = QuestCompat.ListedQuests(questsList);
         }
         else if (source != null)
         {
@@ -143,7 +143,7 @@ internal sealed class QuestDiscoveryService
                 // are currently available. Passive Silver Box handling reads
                 // the live quest cache separately to avoid a circular gate.
                 bool explicitElementQuest =
-                    quest.questType == QuestType.KillEnemiesOfType &&
+                    QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesOfType &&
                     quest.enemyType != null;
                 Upgrade requiredBundle = quest.bundleRequired;
                 bool elementQuestUnlocked = requiredBundle == null ||
@@ -207,7 +207,7 @@ internal sealed class QuestDiscoveryService
     }
 
     private void ObserveWatchedCompletion(
-        Il2CppSystem.Collections.Generic.List<Quest> quests,
+        List<Quest> quests,
         string watchedQuestKey)
     {
         if (WatchedQuestCompleted || quests == null ||
@@ -280,7 +280,7 @@ internal sealed class QuestDiscoveryService
                 lastRefreshLog = successMessage;
                 AdventurerLog.QuestDebug(successMessage);
             }
-            return questsList.lastScrollListData != null;
+            return QuestCompat.ListedQuests(questsList) != null;
         }
         catch (Exception exception)
         {

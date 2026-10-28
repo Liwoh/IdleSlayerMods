@@ -140,7 +140,7 @@ internal sealed class SilverBoxQuestService
         // allQuests is the game's full definition catalogue and contains
         // future locked quests. Only the live UI/runtime cache identifies
         // quests that have actually been added to the current save.
-        var cached = list?.lastScrollListData;
+        var cached = QuestCompat.ListedQuests(list);
         if (!needsSilverBoxes && cached != null)
         {
             for (int index = 0; index < cached.Count; index++)
@@ -187,7 +187,7 @@ internal sealed class SilverBoxQuestService
     {
         if (quest == null || quest is DailyQuest || quest is WeeklyQuest ||
             quest.isClaimed ||
-            quest.questType != QuestType.HitRandomSilverBoxes) return false;
+            QuestCompat.Kind(quest) != LegacyQuestType.HitRandomSilverBoxes) return false;
         try
         {
             return !quest.IsCompleted();

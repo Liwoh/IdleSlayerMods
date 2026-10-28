@@ -428,7 +428,7 @@ internal sealed class QuestTravelService
             else
             {
                 lockedQuestSuppressesRage =
-                    locked.questType == QuestType.KillEnemiesWithArrows;
+                    QuestCompat.Kind(locked) == LegacyQuestType.KillEnemiesWithArrows;
                 QuestTargetSelection tracked = resolver.ResolveLocked(
                     locked, lockedTargetMapId);
                 lockedQuestNeedsCharacterSwitch =
