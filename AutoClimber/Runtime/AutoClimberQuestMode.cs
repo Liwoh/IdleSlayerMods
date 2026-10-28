@@ -133,7 +133,11 @@ internal static class AutoClimberQuestMode
         {
             Quest quest = source[index];
 
-            if (quest != null && quest.CanBeCompletedOrClaimed())
+            // CanBeCompleted() stays true for quests of events that are not
+            // running, hence the extra EventAvailable() check.
+            if (quest != null &&
+                quest.CanBeCompletedOrClaimed() &&
+                (quest.mapEvent == null || quest.EventAvailable()))
             {
                 target.Add(quest);
             }
