@@ -150,7 +150,7 @@ internal sealed class QuestDiscoveryService
                     requiredBundle.bought ||
                     (requiredBundle.isSpecialUnlock &&
                      requiredBundle.specialUnlocked);
-                if (quest.isClaimed) continue;
+                if (quest.isClaimed || !QuestCompat.IsEventLive(quest)) continue;
                 if ((!explicitElementQuest && !quest.CanBeCompleted()) ||
                     (explicitElementQuest && !elementQuestUnlocked) ||
                     quest.IsCompleted()) continue;

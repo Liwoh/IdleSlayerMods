@@ -57,38 +57,59 @@ internal static class QuestCompat
     // The sections also hold quests the panel hides (e.g. every event's
     // quests), so only quests the game reports as live are kept.
     // Returns null while no section has been built yet, like the old cache.
+    // An empty result is valid data: every listed quest may already be done.
     internal static List<Quest> ListedQuests(QuestsList list)
     {
         if (list == null) return null;
 
         List<Quest> quests = new();
-        AddQuests(quests, list.mainQuests);
-        AddQuests(quests, list.dailyQuests);
-        AddQuests(quests, list.weeklyQuests);
-        AddQuests(quests, list.eventQuests);
+        bool built = AddQuests(quests, list.mainQuests, "main");
+        built |= AddQuests(quests, list.dailyQuests, "daily");
+        built |= AddQuests(quests, list.weeklyQuests, "weekly");
+        built |= AddQuests(quests, list.eventQuests, "event");
         if (list.collabQuests != null)
         {
+            built = true;
             foreach (var entry in list.collabQuests)
-                AddQuests(quests, entry.Value);
+                AddQuests(quests, entry.Value, "collab");
         }
 
-        return quests.Count > 0 ? quests : null;
+        return built ? quests : null;
     }
 
-    private static void AddQuests(
+    private static readonly Dictionary<string, string> LoggedSectionCounts = new();
+
+    // CanBeCompleted() stays true for quests of events that are not running.
+    internal static bool IsEventLive(Quest quest) =>
+        quest.mapEvent == null || quest.EventAvailable();
+
+    private static bool AddQuests(
         List<Quest> target,
-        Il2CppSystem.Collections.Generic.List<Quest> source)
+        Il2CppSystem.Collections.Generic.List<Quest> source,
+        string section)
     {
-        if (source == null) return;
+        if (source == null) return false;
+        int before = target.Count;
         for (int index = 0; index < source.Count; index++)
         {
             Quest quest = source[index];
             if (quest == null) continue;
-            if (quest.CanBeCompletedOrClaimed())
+            if (quest.CanBeCompletedOrClaimed() && IsEventLive(quest))
                 target.Add(quest);
             else
                 LogHiddenQuest(quest);
         }
+
+        // TEMP: section sizes for the in-game check. Remove before PR.
+        string counts = $"{target.Count - before}/{source.Count}";
+        if (!LoggedSectionCounts.TryGetValue(section, out string last) ||
+            last != counts)
+        {
+            LoggedSectionCounts[section] = counts;
+            AdventurerLog.QuestDebug(
+                $"[QuestCompat] section={section}; kept={counts}");
+        }
+        return true;
     }
 
     private static readonly HashSet<string> LoggedHiddenQuests = new();
@@ -106,7 +127,19 @@ internal static class QuestCompat
     {
         if (quest == null || !LoggedQuestTypes.Add(quest.name)) return;
         string typeName = quest.type != null ? quest.type.name : "null";
+        string state;
+        try
+        {
+            state = $"event={(quest.mapEvent != null ? quest.mapEvent.name : "none")}; " +
+                $"eventAvailable={quest.EventAvailable()}; set={quest.eventSet}; " +
+                $"collab={(quest.fromCollab != null ? quest.fromCollab.collabId : "none")}; " +
+                $"canComplete={quest.CanBeCompleted()}; completed={quest.IsCompleted()}; claimed={quest.isClaimed}";
+        }
+        catch (System.Exception exception)
+        {
+            state = $"state unreadable ({exception.GetType().Name})";
+        }
         AdventurerLog.User(
-            $"[QuestCompat] quest={quest.name}; legacy={(int)kind} ({kind}); type={typeName}");
+            $"[QuestCompat] quest={quest.name}; legacy={(int)kind} ({kind}); type={typeName}; {state}");
     }
 }
