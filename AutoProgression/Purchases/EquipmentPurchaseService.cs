@@ -14,6 +14,7 @@ internal sealed class EquipmentPurchaseService
     private float nextCheckTime;
     private float noPurchaseSince = -1f;
     private float sleepUntil;
+    private float nextScanLogTime;
     private bool missingLogged;
     private int roundPurchaseCount;
     private int roundPurchasedLevels;
@@ -37,6 +38,20 @@ internal sealed class EquipmentPurchaseService
 
         ShopManager shop = ShopManager.instance;
         PowersList powersList = PowersList.instance;
+        // Like the skill list, the game only refreshes this cache when the
+        // shop is opened: after an Ascension it kept stale entries and nothing
+        // was bought for an hour (observed 2026-10-29). Refresh per round.
+        if (powersList != null && currentPowerIndex < 0)
+        {
+            try
+            {
+                powersList.RefreshList();
+            }
+            catch (Exception exception)
+            {
+                ProgressionLog.Exception("Equipment-list refresh", exception);
+            }
+        }
         var powers = powersList?.scrollListData;
         if (shop == null || powers == null)
         {
@@ -60,6 +75,7 @@ internal sealed class EquipmentPurchaseService
         }
 
         int latestUnlockedIndex = FindLatestUnlockedIndex(powers);
+        LogScanState(now, powersList, powers, latestUnlockedIndex);
 
         while (currentPowerIndex >= 0)
         {
@@ -120,6 +136,28 @@ internal sealed class EquipmentPurchaseService
             $"Equipment purchase round completed: {roundPurchaseCount} purchase(s), +{roundPurchasedLevels} total levels.");
         roundPurchaseCount = 0;
         roundPurchasedLevels = 0;
+    }
+
+    // TEMP: shows what the buyer sees, at most once a minute.
+    private void LogScanState(
+        float now, PowersList powersList,
+        Il2CppSystem.Collections.Generic.List<Power> powers, int latestUnlockedIndex)
+    {
+        if (now < nextScanLogTime) return;
+        nextScanLogTime = now + 60f;
+        string latest = "none";
+        if (latestUnlockedIndex >= 0)
+        {
+            Power power = powers[latestUnlockedIndex];
+            latest = $"{power.name} level={power.level} affordable={power.CalculateMaxCost().accumulated}";
+        }
+        int lastCount = powersList.lastScrollListData != null
+            ? powersList.lastScrollListData.Count
+            : -1;
+        ProgressionLog.Debug(
+            $"Equipment scan: scrollListData={powers.Count}, lastScrollListData={lastCount}, " +
+            $"index={currentPowerIndex}, latest unlocked: {latest}.",
+            "Purchases");
     }
 
     private static bool IsUnlocked(Power power)
