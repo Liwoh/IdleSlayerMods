@@ -20,6 +20,7 @@ internal sealed class EquipmentPurchaseService
     private int roundPurchasedLevels;
     private int currentPowerIndex = -1;
     private int knownPowerCount = -1;
+    private int latestUnlockedIndex = -1;
 
     internal bool Tick(float now)
     {
@@ -64,17 +65,21 @@ internal sealed class EquipmentPurchaseService
         }
 
         missingLogged = false;
+        bool roundStart = false;
         if (powers.Count != knownPowerCount)
         {
             knownPowerCount = powers.Count;
             currentPowerIndex = powers.Count - 1;
+            roundStart = true;
         }
         else if (currentPowerIndex < 0)
         {
             currentPowerIndex = powers.Count - 1;
+            roundStart = true;
         }
 
-        int latestUnlockedIndex = FindLatestUnlockedIndex(powers);
+        if (roundStart || latestUnlockedIndex >= powers.Count)
+            latestUnlockedIndex = FindLatestTargetIndex(powers);
         LogScanState(now, powersList, powers, latestUnlockedIndex);
 
         while (currentPowerIndex >= 0)
@@ -149,14 +154,14 @@ internal sealed class EquipmentPurchaseService
         if (latestUnlockedIndex >= 0)
         {
             Power power = powers[latestUnlockedIndex];
-            latest = $"{power.name} level={power.level} affordable={power.CalculateMaxCost().accumulated}";
+            latest = $"{power.name} level={power.level} levelAfterAscend={power.levelAfterAscend} affordable={power.CalculateMaxCost().accumulated}";
         }
         int lastCount = powersList.lastScrollListData != null
             ? powersList.lastScrollListData.Count
             : -1;
         ProgressionLog.Debug(
             $"Equipment scan: scrollListData={powers.Count}, lastScrollListData={lastCount}, " +
-            $"index={currentPowerIndex}, latest unlocked: {latest}.",
+            $"index={currentPowerIndex}, purchase target: {latest}.",
             "Purchases");
     }
 
@@ -171,15 +176,28 @@ internal sealed class EquipmentPurchaseService
         return unlock == null || unlock.bought;
     }
 
-    private static int FindLatestUnlockedIndex(
+    // The "latest" equipment gets the small purchase stack. Ascension skills
+    // can keep advanced equipment unlocked long before it is affordable, which
+    // stalled every purchase early in a cycle (observed after an Ultra
+    // Ascension). Skip equipment not bought yet this cycle (still at
+    // levelAfterAscend) until a full latest stack is affordable; late in a
+    // cycle the newest item is already started, so the choice is unchanged.
+    private static int FindLatestTargetIndex(
         Il2CppSystem.Collections.Generic.List<Power> powers)
     {
+        int latestStack = Math.Max(1, Plugin.Config.EquipmentLatestMinimumLevels.Value);
+        int newestUnlocked = -1;
         for (int index = powers.Count - 1; index >= 0; index--)
         {
-            if (IsUnlocked(powers[index])) return index;
+            Power power = powers[index];
+            if (!IsUnlocked(power)) continue;
+            if (newestUnlocked < 0) newestUnlocked = index;
+            if (power.level > (int)power.levelAfterAscend ||
+                power.CalculateMaxCost().accumulated >= latestStack)
+                return index;
         }
 
-        return -1;
+        return newestUnlocked;
     }
 
     private static int BuyLevels(ShopManager shop, Power power, int levels)
@@ -240,5 +258,6 @@ internal sealed class EquipmentPurchaseService
         roundPurchasedLevels = 0;
         currentPowerIndex = -1;
         knownPowerCount = -1;
+        latestUnlockedIndex = -1;
     }
 }
