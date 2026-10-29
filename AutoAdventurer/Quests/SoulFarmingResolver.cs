@@ -11,7 +11,7 @@ internal sealed class SoulFarmingResolver
     private const double ScoreEqualityTolerance = 0.000001d;
     private PopupPortals resolvedPopup;
     private bool unavailableLogged;
-    private bool availableMapsLogged;
+    private string lastLoggedChoices = string.Empty;
     private bool fallbackMissingLogged;
 
     internal SoulFarmingSelection SelectBestAvailable()
@@ -30,7 +30,7 @@ internal sealed class SoulFarmingResolver
             return null;
         bool fixedTarget = fallback.Length > 0 &&
             !fallback.Equals("Auto", StringComparison.OrdinalIgnoreCase);
-        List<string> listed = availableMapsLogged ? null : new List<string>();
+        List<string> listed = new();
 
         Map bestMap = null;
         double bestScore = double.MinValue;
@@ -56,7 +56,7 @@ internal sealed class SoulFarmingResolver
             }
 
             if (double.IsNaN(souls) || double.IsInfinity(souls)) continue;
-            listed?.Add($"{map.name} ({souls:0.#})");
+            listed.Add(map.name);
             bool isCurrent = string.Equals(map.name, currentMapId,
                 StringComparison.Ordinal);
             if (isCurrent) currentScore = souls;
@@ -79,11 +79,13 @@ internal sealed class SoulFarmingResolver
             bestScore = souls;
         }
 
-        if (listed != null)
+        // The Portal list shrinks to the current map while its cooldown runs,
+        // so log the choices again whenever they change.
+        string choices = string.Join(", ", listed);
+        if (choices != lastLoggedChoices)
         {
-            availableMapsLogged = true;
-            AdventurerLog.User(
-                $"Fallback Map choices (souls score): {string.Join(", ", listed)}.");
+            lastLoggedChoices = choices;
+            AdventurerLog.User($"Fallback Map choices: {choices}.");
         }
 
         if (bestMap == null)
@@ -147,7 +149,7 @@ internal sealed class SoulFarmingResolver
     internal void Reset()
     {
         InvalidateSceneObjects();
-        availableMapsLogged = false;
+        lastLoggedChoices = string.Empty;
         fallbackMissingLogged = false;
     }
 }
