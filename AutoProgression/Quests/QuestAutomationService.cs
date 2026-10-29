@@ -311,6 +311,38 @@ internal sealed class QuestAutomationService
         {
             refreshRequired = true;
             nextCheckTime = now + RegenerationSettleSeconds;
+            return;
+        }
+
+        if (!Plugin.Config.AddExtraQuests.Value) return;
+        // The extra quests button is an ad reward on mobile; on PC it grants
+        // RewardForShowing() directly, once per set (Reset() clears granted).
+        ExtraDailyQuests extraDaily = ExtraDailyQuests.instance;
+        if (dailyCount > 0 && extraDaily != null && !extraDaily.granted &&
+            TryGrantExtraQuests(extraDaily.RewardForShowing, "Daily",
+                extraDaily.extraQuestsToAdd))
+            refreshRequired = true;
+        ExtraWeeklyQuests extraWeekly = ExtraWeeklyQuests.instance;
+        if (weeklyCount > 0 && extraWeekly != null && !extraWeekly.granted &&
+            TryGrantExtraQuests(extraWeekly.RewardForShowing, "Weekly",
+                extraWeekly.extraQuestsToAdd))
+            refreshRequired = true;
+    }
+
+    private static bool TryGrantExtraQuests(Action grant, string kind, int amount)
+    {
+        try
+        {
+            grant();
+            ProgressionLog.Debug(
+                $"Added {amount} extra {kind} Quest(s) with the extra quests bonus.",
+                "Quests");
+            return true;
+        }
+        catch (Exception exception)
+        {
+            ProgressionLog.Exception($"Extra {kind} Quests", exception);
+            return false;
         }
     }
 

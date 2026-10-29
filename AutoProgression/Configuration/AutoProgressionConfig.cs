@@ -42,6 +42,7 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
     internal MelonPreferences_Entry<bool> PreferMinimumRageWeeklyQuest;
     internal MelonPreferences_Entry<bool> FilterGeneratedDailyQuests;
     internal MelonPreferences_Entry<bool> ResetPortalCooldown;
+    internal MelonPreferences_Entry<bool> AddExtraQuests;
     internal MelonPreferences_Entry<bool> EnableCraftableAutomation;
     internal MelonPreferences_Entry<bool> EnableRagePill;
     internal MelonPreferences_Entry<bool> EnableWhetstone;
@@ -151,6 +152,8 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
         ResetPortalCooldown = BindMigrated(
             "Quests", "Reset Portal Cooldown", "Quests - Reset Portal Cooldown", true,
             "Keep the normal Portal cooldown at zero while AutoProgression is active.", migrateLegacyValues);
+        AddExtraQuests = Bind("Quests", "Add Extra Quests", true,
+            "Once per Daily and Weekly set, press the game's extra quests button (the bonus that adds quests to the active set) when it has not been used yet, while AutoProgression is active.");
 
         EnableCraftableAutomation = BindMigrated(
             "Craftables", "Enabled", "Craftables - Enabled", false,
