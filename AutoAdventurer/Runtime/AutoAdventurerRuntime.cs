@@ -147,7 +147,9 @@ public sealed class AutoAdventurerRuntime : MonoBehaviour
                     Time.unscaledTime,
                     automaticBoostEnabled,
                     Plugin.Config.AutoJump.Value,
-                    Plugin.Config.AutoShootArrows.Value,
+                    // Arrows would kill the enemies a Wind Dash kill quest needs.
+                    Plugin.Config.AutoShootArrows.Value &&
+                    !(questAutomationEnabled && questTravel.LockedQuestNeedsWindDash),
                     Plugin.Config.ArrowAttackFrequency.Value);
                 autoBoost.Tick(
                     Time.unscaledTime,
