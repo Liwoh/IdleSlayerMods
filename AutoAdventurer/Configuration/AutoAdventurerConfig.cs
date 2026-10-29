@@ -42,6 +42,7 @@ internal sealed class AutoAdventurerConfig(string configName) : BaseConfig(confi
     internal MelonPreferences_Entry<double> PermanentSilverBoxReleaseAboveDivinityPoints;
     internal MelonPreferences_Entry<double> MinimumDimensionStayMinutes;
     internal MelonPreferences_Entry<double> MaximumQuestTimeMinutes;
+    internal MelonPreferences_Entry<string> FallbackMap;
 
     internal double MinimumDimensionStayMinutesValue =>
         Math.Max(0d, MinimumDimensionStayMinutes.Value);
@@ -204,6 +205,8 @@ internal sealed class AutoAdventurerConfig(string configName) : BaseConfig(confi
         MaximumQuestTimeMinutes = Bind(QuestAutomationSection,
             "Maximum Quest Time Minutes", maximumQuestTime,
             "Allow one selected quest to run for at most this many minutes before releasing it and fully rescanning. Set to 0 to disable the maximum time limit.");
+        FallbackMap = Bind(QuestAutomationSection, "Fallback Map", "Auto",
+            "Where to go when no kill quest can be done. Auto = the dimension with the best live soul score. Off = stay in the current dimension. Or an internal map name such as map_funky_space; the available names are listed in the log when Quest Automation starts.");
 
         ToggleKey = Bind(RageSection, "Toggle Key", "K",
             "Keyboard key used to enable or disable Automatic Rage.");

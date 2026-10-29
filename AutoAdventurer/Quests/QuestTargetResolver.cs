@@ -53,12 +53,20 @@ internal sealed class QuestTargetResolver
         return ResolveMap(quest, preferredMapId);
     }
 
+    // TEMP: why the last ResolveLocked call returned null. Remove before PR.
+    internal string LastRejectReason { get; private set; } = string.Empty;
+
     private bool IsExecutableKillQuest(Quest quest)
     {
+        LastRejectReason = "map resolution";
         try
         {
             if (quest is DailyQuest daily &&
-                (!daily.active || !daily.CheckIfIsValid())) return false;
+                (!daily.active || !daily.CheckIfIsValid()))
+            {
+                LastRejectReason = $"daily active={daily.active}, valid={daily.CheckIfIsValid()}";
+                return false;
+            }
             bool explicitElementQuest =
                 QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesOfType &&
                 quest.enemyType != null;
@@ -68,7 +76,11 @@ internal sealed class QuestTargetResolver
             // a naturally Fire enemy unaffected by Ice) is already present.
             // These quests came from the live active-task cache; validate them
             // against actual current evolution stages and unlocked maps below.
-            if (!explicitElementQuest && !quest.CanBeCompleted()) return false;
+            if (!explicitElementQuest && !quest.CanBeCompleted())
+            {
+                LastRejectReason = $"CanBeCompleted=false (completed={quest.IsCompleted()}, claimed={quest.isClaimed})";
+                return false;
+            }
             bool characterQuest =
                 QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesWithCharacter ||
                 quest.characterRequired != null;
@@ -91,7 +103,11 @@ internal sealed class QuestTargetResolver
                 LegacyQuestType.KillEnemiesOfType or
                 LegacyQuestType.KillShinyEnemies or
                 LegacyQuestType.WindDashKills;
-            if (!killType) return false;
+            if (!killType || QuestCompat.IsVisitLocation(quest))
+            {
+                LastRejectReason = $"not a kill quest ({QuestCompat.Kind(quest)})";
+                return false;
+            }
 
             // Exact targets, native types, provable map categories, and
             // generic arrow kills are executable without parsing text.
@@ -102,14 +118,28 @@ internal sealed class QuestTargetResolver
                    QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesWithArrows ||
                    characterQuest;
         }
-        catch
+        catch (Exception exception)
         {
+            LastRejectReason = $"exception {exception.GetType().Name}";
             return false;
         }
     }
 
+    // Location quests from the October 2026 quest system only count kills in
+    // Quest.map, so never resolve them to another dimension.
     private QuestTargetSelection ResolveMap(
         Quest quest, string preferredMapId = "")
+    {
+        BaseMap required = QuestCompat.RequiredMap(quest);
+        if (required == null) return ResolveAnyMap(quest, preferredMapId);
+
+        QuestTargetSelection selection = ResolveAnyMap(quest, required.name);
+        return selection != null && string.Equals(selection.MapId,
+            required.name, StringComparison.Ordinal) ? selection : null;
+    }
+
+    private QuestTargetSelection ResolveAnyMap(
+        Quest quest, string preferredMapId)
     {
         MapController controller = MapController.instance;
         BaseMap currentMap = controller?.selectedMap;

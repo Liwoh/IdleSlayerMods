@@ -117,6 +117,30 @@ internal static class AutoClimberQuestMode
             }
         }
 
+        // The game fills the sections only once the quest panel has been
+        // shown; until then fall back to the full quest catalogue.
+        if (quests.Count == 0)
+        {
+            var all = PlayerInventory.instance?.allQuests;
+
+            if (all != null)
+            {
+                for (int index = 0; index < all.Count; index++)
+                {
+                    Quest quest = all[index];
+
+                    if (quest != null &&
+                        !quest.isClaimed &&
+                        !quest.IsCompleted() &&
+                        quest.CanBeCompleted() &&
+                        (quest.mapEvent == null || quest.EventAvailable()))
+                    {
+                        quests.Add(quest);
+                    }
+                }
+            }
+        }
+
         return quests;
     }
 
