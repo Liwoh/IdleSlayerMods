@@ -43,6 +43,7 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
     internal MelonPreferences_Entry<bool> FilterGeneratedDailyQuests;
     internal MelonPreferences_Entry<bool> ResetPortalCooldown;
     internal MelonPreferences_Entry<bool> AddExtraQuests;
+    internal MelonPreferences_Entry<bool> FilterActiveDailyQuests;
     internal MelonPreferences_Entry<bool> EnableCraftableAutomation;
     internal MelonPreferences_Entry<bool> EnableRagePill;
     internal MelonPreferences_Entry<bool> EnableWhetstone;
@@ -149,6 +150,8 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
         FilterGeneratedDailyQuests = BindMigrated(
             "Quests", "Filter Generated Daily Quests", "Quests - Filter Generated Daily Quests", false,
             "After a new Daily Quest set is generated, reroll Goblin kills, material collection, Chest Hunt chests, normal or Silver Random Boxes, normal Boost uses, Rage Mode uses, Bonus Stage entry/full completion/sections, Ascending Heights, and Grapple Run objectives. Rage Mode kill and Wind Dash kill quests are retained. Manual rerolls do not trigger this feature.", migrateLegacyValues);
+        FilterActiveDailyQuests = Bind("Quests", "Filter Active Daily Quests", false,
+            "Every 30 seconds, apply the same reroll rules to Daily Quests that are still active, not only right after generation. A set only regenerates once all its quests are done, so this keeps one slow quest from blocking the next set.");
         ResetPortalCooldown = BindMigrated(
             "Quests", "Reset Portal Cooldown", "Quests - Reset Portal Cooldown", true,
             "Keep the normal Portal cooldown at zero while AutoProgression is active.", migrateLegacyValues);

@@ -14,6 +14,7 @@ internal sealed class DailyQuestFilterService
     private const float PostRerollSettleSeconds = 0.2f;
     private const float FailedRerollRetrySeconds = 1f;
     private const float UnavailableLogIntervalSeconds = 10f;
+    private const float ActivePassIntervalSeconds = 30f;
 
     private readonly HashSet<int> protectedQuestIds = new();
     private DailyQuest target;
@@ -24,6 +25,7 @@ internal sealed class DailyQuestFilterService
     private int lastActiveQuestCount;
     private float rerollReadyAt;
     private float nextUnavailableLogAt;
+    private float nextActivePassAt;
 
     internal bool IsProcessing => processing;
 
@@ -165,19 +167,39 @@ internal sealed class DailyQuestFilterService
             if (!Plugin.Config.FilterGeneratedDailyQuests.Value)
                 continue;
 
-            protectedQuestIds.Clear();
-            target = null;
-            completionVerificationPending = false;
-            attempts = 0;
-            transientRecoveryAttempts = 0;
-            lastActiveQuestCount = 0;
-            rerollReadyAt = Time.unscaledTime + PostGenerationSettleSeconds;
-            nextUnavailableLogAt = 0f;
-            processing = true;
+            BeginPass(PostGenerationSettleSeconds);
             return true;
         }
 
+        // A set only regenerates once every quest is done, so one slow quest
+        // kept from an earlier set (or added later) blocks the next set.
+        // Periodically run the same pass over the quests still active.
+        if (Plugin.Config.FilterActiveDailyQuests.Value &&
+            Time.unscaledTime >= nextActivePassAt)
+        {
+            nextActivePassAt = Time.unscaledTime + ActivePassIntervalSeconds;
+            foreach (DailyQuest quest in FindActiveDailyQuests())
+            {
+                if (IsReadyToClaim(quest) || !ShouldReroll(quest)) continue;
+                BeginPass(0f);
+                return true;
+            }
+        }
+
         return false;
+    }
+
+    private void BeginPass(float settleSeconds)
+    {
+        protectedQuestIds.Clear();
+        target = null;
+        completionVerificationPending = false;
+        attempts = 0;
+        transientRecoveryAttempts = 0;
+        lastActiveQuestCount = 0;
+        rerollReadyAt = Time.unscaledTime + settleSeconds;
+        nextUnavailableLogAt = 0f;
+        processing = true;
     }
 
     private bool PrepareNextTarget()
