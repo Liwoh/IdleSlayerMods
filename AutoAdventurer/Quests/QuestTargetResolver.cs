@@ -36,14 +36,26 @@ internal sealed class QuestTargetResolver
                     continue;
             }
 
-            if (best == null ||
-                candidate.RewardPriority > best.RewardPriority ||
-                (candidate.RewardPriority == best.RewardPriority &&
-                 candidate.RequiredKills < best.RequiredKills))
+            int storyOrder = Plugin.Config.PrioritizeStoryQuests.Value && best != null
+                ? IsStoryQuest(candidate.Quest).CompareTo(IsStoryQuest(best.Quest))
+                : 0;
+            if (best == null || storyOrder > 0 ||
+                (storyOrder == 0 &&
+                 (candidate.RewardPriority > best.RewardPriority ||
+                  (candidate.RewardPriority == best.RewardPriority &&
+                   candidate.RequiredKills < best.RequiredKills))))
                 best = candidate;
         }
 
         return best;
+    }
+
+    // Daily and Weekly quests are recycled components; everything else is a
+    // story or event quest from the normal quest catalogue.
+    private static bool IsStoryQuest(Quest quest)
+    {
+        string runtimeType = quest?.GetIl2CppType()?.Name ?? string.Empty;
+        return runtimeType != nameof(DailyQuest) && runtimeType != nameof(WeeklyQuest);
     }
 
     internal QuestTargetSelection ResolveLocked(
