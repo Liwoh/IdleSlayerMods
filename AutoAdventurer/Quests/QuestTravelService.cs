@@ -47,6 +47,7 @@ internal sealed class QuestTravelService
     private float lockedQuestStartedAt;
     private double lockedQuestProgressBaseline;
     private float nextLockedQuestProgressCheckAt;
+    private float nextBackgroundPreemptCheckAt;
     private float characterSwitchStableAt;
     private float nextCharacterSwitchCheckAt;
     private string characterWaitLoggedForQuestKey = string.Empty;
@@ -502,8 +503,18 @@ internal sealed class QuestTravelService
                         "reason=previous map no longer has a valid unlocked target.");
                     lockedTargetMapId = tracked.MapId;
                 }
-                FlushPendingCompletionLogs(tracked);
-                return tracked;
+                QuestTargetSelection preferred =
+                    FindPreferredOverBackgroundQuest(locked, quests);
+                if (preferred == null)
+                {
+                    FlushPendingCompletionLogs(tracked);
+                    return tracked;
+                }
+                AdventurerLog.QuestDebug(
+                    $"Quest lock released: quest={lockedQuestDisplayName} [{lockedQuestId}]; " +
+                    $"reason=background story quest yields to {preferred.QuestDisplayName} [{preferred.QuestId}].");
+                ClearPendingTravel();
+                ClearQuestLock();
                 }
             }
         }
@@ -622,6 +633,23 @@ internal sealed class QuestTravelService
         foreach (string completion in pendingCompletionLogs)
             AdventurerLog.User($"{completion} {currentTask}");
         pendingCompletionLogs.Clear();
+    }
+
+    // A locked background story quest (any enemy, any map) still progresses
+    // while other quests run, so it gives way to a higher tier quest.
+    private QuestTargetSelection FindPreferredOverBackgroundQuest(
+        Quest locked, List<Quest> quests)
+    {
+        if (QuestTargetResolver.PriorityTier(locked) != 0 ||
+            !Plugin.Config.PrioritizeStoryQuests.Value ||
+            Time.unscaledTime < nextBackgroundPreemptCheckAt)
+            return null;
+        nextBackgroundPreemptCheckAt = Time.unscaledTime + 30f;
+
+        QuestTargetSelection best = resolver.Select(
+            ExcludeAbnormalQuests(quests), CanConsiderPortalTravel());
+        return best != null &&
+               QuestTargetResolver.PriorityTier(best.Quest) > 0 ? best : null;
     }
 
     private static bool IsDailyQuest(Quest quest)
