@@ -289,7 +289,10 @@ internal sealed class QuestTargetResolver
         return null;
     }
 
-    private static bool IsStandardPortalDimension(BaseMap map) => map is Map;
+    // MapController.selectedMap is wrapped as BaseMap, so a C# `is Map` test
+    // is always false for it; TryCast checks the actual IL2CPP type.
+    private static bool IsStandardPortalDimension(BaseMap map) =>
+        map != null && map.TryCast<Map>() != null;
 
     private static QuestTargetSelection CreateSelection(
         Quest quest, Enemy enemy, BaseMap map) =>
