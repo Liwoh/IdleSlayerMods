@@ -110,12 +110,14 @@ internal sealed class QuestTargetResolver
             }
 
             // Exact targets, native types, provable map categories, and
-            // generic arrow kills are executable without parsing text.
+            // generic arrow or Wind Dash kills are executable without parsing
+            // text. Wind Dash kills need the ability, see QuestAbilityService.
             return quest.enemyToKill != null ||
                    explicitElementQuest ||
                    QuestCompat.Kind(quest) == LegacyQuestType.KillFlyers ||
                    QuestCompat.Kind(quest) == LegacyQuestType.KillGiants ||
                    QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesWithArrows ||
+                   QuestCompat.Kind(quest) == LegacyQuestType.WindDashKills ||
                    characterQuest;
         }
         catch (Exception exception)
@@ -160,7 +162,8 @@ internal sealed class QuestTargetResolver
             predicate = enemy => enemy?.isFlying == true;
         else if (QuestCompat.Kind(quest) == LegacyQuestType.KillGiants)
             predicate = enemy => enemy?.isGiant == true;
-        else if (QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesWithArrows)
+        else if (QuestCompat.Kind(quest) is LegacyQuestType.KillEnemiesWithArrows or
+                 LegacyQuestType.WindDashKills)
             predicate = enemy => enemy != null;
         else if (QuestCompat.Kind(quest) == LegacyQuestType.KillEnemiesWithCharacter ||
                  quest.characterRequired != null)
