@@ -87,9 +87,9 @@ internal sealed class EquipmentPurchaseService
             }
 
             int affordableLevels = power.CalculateMaxCost().accumulated;
-            int purchaseStack = currentPowerIndex == latestUnlockedIndex
-                ? Stack10
-                : Stack50;
+            int purchaseStack = Math.Max(1, currentPowerIndex == latestUnlockedIndex
+                ? Plugin.Config.EquipmentLatestMinimumLevels.Value
+                : Plugin.Config.EquipmentOtherMinimumLevels.Value);
             if (affordableLevels < purchaseStack)
             {
                 currentPowerIndex--;
@@ -203,6 +203,16 @@ internal sealed class EquipmentPurchaseService
                 shop.SelectStack(Stack10);
                 int purchasesOf10 = remainingLevels / Stack10;
                 for (int index = 0; index < purchasesOf10; index++)
+                    shop.BuyPower(power);
+                remainingLevels %= Stack10;
+            }
+
+            // Thresholds below 10 (early in a cycle, when only a few levels
+            // are affordable) buy the remainder one level at a time.
+            if (remainingLevels > 0)
+            {
+                shop.SelectStack(1);
+                for (int index = 0; index < remainingLevels; index++)
                     shop.BuyPower(power);
             }
             return Math.Max(0, power.level - previousLevel);

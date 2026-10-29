@@ -65,6 +65,8 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
     internal MelonPreferences_Entry<bool> EnableSkillPurchases;
     internal MelonPreferences_Entry<bool> DisableVerticalMagnetSkills;
     internal MelonPreferences_Entry<bool> EnableEquipmentPurchases;
+    internal MelonPreferences_Entry<int> EquipmentLatestMinimumLevels;
+    internal MelonPreferences_Entry<int> EquipmentOtherMinimumLevels;
 
     protected override void SetBindings()
     {
@@ -101,6 +103,10 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
         EnableEquipmentPurchases = BindMigrated(
             "Purchases", "Equipment Enabled", "Purchases - Equipment Enabled", true,
             "While the main AutoProgression runtime is active, buy levels for unlocked normal equipment, starting from the newest unlocked item.", migrateLegacyValues);
+        EquipmentLatestMinimumLevels = Bind("Purchases", "Equipment Latest Minimum Levels", 10,
+            "Buy the newest unlocked equipment only once at least this many levels are affordable, in multiples of it. 1 buys every affordable level, which helps early in a cycle.");
+        EquipmentOtherMinimumLevels = Bind("Purchases", "Equipment Other Minimum Levels", 50,
+            "Same threshold for older equipment.");
         DisableVerticalMagnetSkills = BindMoved(
             "Purchases", "Disable Vertical Magnet Upgrades", "Skills", "Disable Vertical Magnet Upgrades",
             "Skills - Disable Vertical Magnet Upgrades", true,
