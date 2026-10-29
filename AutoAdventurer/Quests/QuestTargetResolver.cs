@@ -36,8 +36,8 @@ internal sealed class QuestTargetResolver
                     continue;
             }
 
-            int storyOrder = Plugin.Config.PrioritizeStoryQuests.Value && best != null
-                ? IsStoryQuest(candidate.Quest).CompareTo(IsStoryQuest(best.Quest))
+            int storyOrder = best != null
+                ? PriorityTier(candidate.Quest).CompareTo(PriorityTier(best.Quest))
                 : 0;
             if (best == null || storyOrder > 0 ||
                 (storyOrder == 0 &&
@@ -48,6 +48,22 @@ internal sealed class QuestTargetResolver
         }
 
         return best;
+    }
+
+    // With Prioritize Story Quests: 2 = story quest with a target, 1 = daily or
+    // weekly, 0 = story quest that counts any enemy on any map (arrows, Wind
+    // Dash, character). Those progress in the background, so dailies go first.
+    internal static int PriorityTier(Quest quest)
+    {
+        if (!Plugin.Config.PrioritizeStoryQuests.Value || quest == null) return 0;
+        if (!IsStoryQuest(quest)) return 1;
+        bool background = quest.enemyToKill == null &&
+                          quest.enemyType == null &&
+                          QuestCompat.RequiredMap(quest) == null &&
+                          QuestCompat.Kind(quest) is LegacyQuestType.KillEnemiesWithArrows or
+                              LegacyQuestType.WindDashKills or
+                              LegacyQuestType.KillEnemiesWithCharacter;
+        return background ? 0 : 2;
     }
 
     // Daily and Weekly quests are recycled components; everything else is a
