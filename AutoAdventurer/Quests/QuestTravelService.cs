@@ -42,6 +42,7 @@ internal sealed class QuestTravelService
     private bool lockedQuestIsDaily;
     private bool lockedQuestSuppressesRage;
     private bool lockedQuestNeedsWindDash;
+    private bool materialQuestActive;
     private bool lockedQuestNeedsCharacterSwitch;
     private float lockedQuestStartedAt;
     private double lockedQuestProgressBaseline;
@@ -329,6 +330,15 @@ internal sealed class QuestTravelService
         List<Quest> quests = discovery.SnapshotActiveIncomplete(lockedQuestKey);
         lastQuestSnapshotAvailable = discovery.LastSnapshotAvailable;
         if (!lastQuestSnapshotAvailable) return null;
+        materialQuestActive = false;
+        foreach (Quest quest in quests)
+        {
+            if (quest != null && QuestCompat.Kind(quest) == LegacyQuestType.GetMaterials)
+            {
+                materialQuestActive = true;
+                break;
+            }
+        }
         MaintainProactiveCharacter(quests, Time.unscaledTime);
 
         // DailyQuest components are recycled when the active set rerolls.
@@ -804,7 +814,7 @@ internal sealed class QuestTravelService
 
     private void TryHandleSoulFallback(float now)
     {
-        SoulFarmingSelection selection = soulFarming.SelectBestAvailable();
+        SoulFarmingSelection selection = soulFarming.SelectBestAvailable(materialQuestActive);
         if (selection == null) return;
 
         LogSoulFallbackSelection(selection);
@@ -842,7 +852,7 @@ internal sealed class QuestTravelService
         if (!lastQuestSnapshotAvailable || !string.IsNullOrEmpty(lockedQuestKey))
             return;
 
-        SoulFarmingSelection selection = soulFarming.SelectBestAvailable();
+        SoulFarmingSelection selection = soulFarming.SelectBestAvailable(materialQuestActive);
         if (selection == null) return;
         if (currentMap != null && string.Equals(currentMap.name,
                 selection.MapId, StringComparison.Ordinal))

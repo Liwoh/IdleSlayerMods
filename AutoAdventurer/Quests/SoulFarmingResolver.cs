@@ -14,7 +14,11 @@ internal sealed class SoulFarmingResolver
     private string lastLoggedChoices = string.Empty;
     private bool fallbackMissingLogged;
 
-    internal SoulFarmingSelection SelectBestAvailable()
+    // materialQuestActive: an unfinished "Get Materials" quest is active.
+    // Those quests accept any material, and materials only drop from the
+    // current stage of specific enemies (Enemy.drop), so prefer dimensions
+    // where such an enemy spawns instead of the best soul score.
+    internal SoulFarmingSelection SelectBestAvailable(bool materialQuestActive = false)
     {
         MapController controller = MapController.instance;
         BaseMap currentMap = controller?.selectedMap;
@@ -26,11 +30,20 @@ internal sealed class SoulFarmingResolver
         if (maps == null || maps.Count == 0) return null;
 
         string fallback = (Plugin.Config.FallbackMap.Value ?? string.Empty).Trim();
-        if (fallback.Equals("Off", StringComparison.OrdinalIgnoreCase))
+        string materialMap = (Plugin.Config.MaterialQuestMap.Value ?? string.Empty).Trim();
+        bool materialMode = materialQuestActive &&
+            !materialMap.Equals("Off", StringComparison.OrdinalIgnoreCase);
+        if (materialMode && !materialMap.Equals("Auto", StringComparison.OrdinalIgnoreCase))
+            fallback = materialMap;
+        if (!materialMode && fallback.Equals("Off", StringComparison.OrdinalIgnoreCase))
             return null;
         bool fixedTarget = fallback.Length > 0 &&
-            !fallback.Equals("Auto", StringComparison.OrdinalIgnoreCase);
+            !fallback.Equals("Auto", StringComparison.OrdinalIgnoreCase) &&
+            !fallback.Equals("Off", StringComparison.OrdinalIgnoreCase);
+        bool materialAuto = materialMode && !fixedTarget;
         List<string> listed = new();
+        Map bestMaterialMap = null;
+        double bestMaterialScore = double.MinValue;
 
         Map bestMap = null;
         double bestScore = double.MinValue;
@@ -56,10 +69,22 @@ internal sealed class SoulFarmingResolver
             }
 
             if (double.IsNaN(souls) || double.IsInfinity(souls)) continue;
-            listed.Add(map.name);
             bool isCurrent = string.Equals(map.name, currentMapId,
                 StringComparison.Ordinal);
             if (isCurrent) currentScore = souls;
+            if (materialAuto)
+            {
+                string drops = MaterialDrops(map);
+                listed.Add($"{map.name} [{drops}]");
+                if (drops.Length > 0 && (bestMaterialMap == null || souls > bestMaterialScore ||
+                    (isCurrent && Math.Abs(souls - bestMaterialScore) <= ScoreEqualityTolerance)))
+                {
+                    bestMaterialMap = map;
+                    bestMaterialScore = souls;
+                }
+            }
+            else
+                listed.Add(map.name);
 
             if (fixedTarget)
             {
@@ -85,8 +110,18 @@ internal sealed class SoulFarmingResolver
         if (choices != lastLoggedChoices)
         {
             lastLoggedChoices = choices;
-            AdventurerLog.User($"Fallback Map choices: {choices}.");
+            AdventurerLog.User(materialAuto
+                ? $"Material quest active; dimensions [materials]: {choices}."
+                : $"Fallback Map choices: {choices}.");
         }
+
+        if (bestMaterialMap != null)
+        {
+            bestMap = bestMaterialMap;
+            bestScore = bestMaterialScore;
+        }
+        else if (materialAuto && fallback.Equals("Off", StringComparison.OrdinalIgnoreCase))
+            return null;
 
         if (bestMap == null)
         {
@@ -106,6 +141,33 @@ internal sealed class SoulFarmingResolver
             CurrentMapId = currentMapId,
             CurrentSoulScore = currentScore
         };
+    }
+
+    // Material names dropped by the current evolution stage of the map's
+    // enemies; empty when none of them drops a material.
+    private static string MaterialDrops(BaseMap map)
+    {
+        var enemies = map?.enemies;
+        if (enemies == null) return string.Empty;
+
+        HashSet<string> drops = new(StringComparer.Ordinal);
+        for (int index = 0; index < enemies.Count; index++)
+        {
+            Enemy enemy = enemies[index];
+            if (enemy == null) continue;
+            Enemy stage = CurrentStage(enemy);
+            if (stage != null && stage.drop != null)
+                drops.Add(stage.drop.name);
+        }
+        return string.Join(" ", drops);
+    }
+
+    private static Enemy CurrentStage(Enemy enemy)
+    {
+        Enemy first = enemy;
+        for (int depth = 0; first.evolutionBackward != null && depth < 32; depth++)
+            first = first.evolutionBackward;
+        return first.GetCurrentStage() ?? enemy;
     }
 
     private PopupPortals ResolvePopup()
