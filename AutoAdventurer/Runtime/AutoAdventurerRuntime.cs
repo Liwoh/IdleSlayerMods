@@ -147,7 +147,9 @@ public sealed class AutoAdventurerRuntime : MonoBehaviour
                     Time.unscaledTime,
                     automaticBoostEnabled,
                     Plugin.Config.AutoJump.Value,
-                    // Arrows would kill the enemies a Wind Dash kill quest needs.
+                    // Arrows would kill the enemies a Wind Dash kill quest
+                    // needs. This tick only runs in Runner and Rage modes, so
+                    // bonus stages and boss fights keep their arrows.
                     Plugin.Config.AutoShootArrows.Value &&
                     !(questAutomationEnabled && questTravel.LockedQuestNeedsWindDash),
                     Plugin.Config.ArrowAttackFrequency.Value);

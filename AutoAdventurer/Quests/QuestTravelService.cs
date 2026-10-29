@@ -81,7 +81,7 @@ internal sealed class QuestTravelService
         !HasMapActivityBlocker &&
         (Time.unscaledTime < postRagePortalBlockedUntil ||
          !string.IsNullOrEmpty(requestedMapId) || lockedQuestSuppressesRage ||
-         lockedQuestNeedsWindDash || lockedQuestNeedsCharacterSwitch ||
+         lockedQuestNeedsCharacterSwitch ||
          !string.IsNullOrEmpty(proactiveCharacterId) ||
          Time.unscaledTime < characterSwitchStableAt);
 
