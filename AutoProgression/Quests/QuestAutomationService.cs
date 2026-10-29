@@ -138,7 +138,7 @@ internal sealed class QuestAutomationService
             }
         }
 
-        RegenerateMissingQuestTypes(snapshot, now);
+        RegenerateMissingQuestTypes(now);
     }
 
     private static List<Quest> BuildClaimCandidates(List<Quest> uiSnapshot)
@@ -253,16 +253,18 @@ internal sealed class QuestAutomationService
         Failed
     }
 
-    private void RegenerateMissingQuestTypes(List<Quest> quests, float now)
+    private void RegenerateMissingQuestTypes(float now)
     {
+        // Count from the live ScriptableObjects, like the claim candidates.
+        // Since the October 2026 update the quest-list sections stay empty
+        // until the quest panel is shown, which made every set look missing
+        // and regenerated active Daily and Weekly Quests in a loop.
         int dailyCount = 0;
         int weeklyCount = 0;
-        foreach (Quest quest in quests)
-        {
-            string typeName = quest.GetIl2CppType()?.FullName ?? string.Empty;
-            if (typeName.EndsWith("DailyQuest", StringComparison.Ordinal)) dailyCount++;
-            else if (typeName.EndsWith("WeeklyQuest", StringComparison.Ordinal)) weeklyCount++;
-        }
+        foreach (DailyQuest daily in Resources.FindObjectsOfTypeAll<DailyQuest>())
+            if (daily != null && daily.active && !daily.isClaimed) dailyCount++;
+        foreach (WeeklyQuest weekly in Resources.FindObjectsOfTypeAll<WeeklyQuest>())
+            if (weekly != null && weekly.active && !weekly.isClaimed) weeklyCount++;
 
         bool regenerated = false;
         CraftableItems craftables = CraftableItems.list;
