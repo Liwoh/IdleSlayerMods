@@ -255,22 +255,44 @@ internal sealed class DailyQuestFilterService
         return false;
     }
 
+    internal const string GoblinFilterType = "Goblin";
+
+    internal const string DefaultFilterTypes =
+        "Goblin, ChestHuntChests, HitRandomBoxes, HitRandomSilverBoxes, Boost, " +
+        "UseRageMode, BonusStage, BonusStageSections, CraftTemporaryItems, " +
+        "GetMaterials, CompleteAscendingHeights, CompleteGrappleRuns";
+
+    private static string parsedFilterTypes;
+    private static bool filterGoblins;
+    private static readonly HashSet<LegacyQuestType> FilteredTypes = new();
+
     private static bool ShouldReroll(DailyQuest quest)
     {
         if (quest == null) return false;
-        if (HasGoblinObjective(quest)) return true;
+        RefreshFilterTypes();
+        if (filterGoblins && HasGoblinObjective(quest)) return true;
+        return FilteredTypes.Contains(QuestCompat.Kind(quest));
+    }
 
-        return QuestCompat.Kind(quest) is LegacyQuestType.ChestHuntChests or
-            LegacyQuestType.HitRandomBoxes or
-            LegacyQuestType.HitRandomSilverBoxes or
-            LegacyQuestType.Boost or
-            LegacyQuestType.UseRageMode or
-            LegacyQuestType.BonusStage or
-            LegacyQuestType.BonusStageSections or
-            LegacyQuestType.CraftTemporaryItems or
-            LegacyQuestType.GetMaterials or
-            LegacyQuestType.CompleteAscendingHeights or
-            LegacyQuestType.CompleteGrappleRuns;
+    private static void RefreshFilterTypes()
+    {
+        string configured = Plugin.Config.DailyFilterTypes.Value ?? string.Empty;
+        if (configured == parsedFilterTypes) return;
+
+        parsedFilterTypes = configured;
+        filterGoblins = false;
+        FilteredTypes.Clear();
+        foreach (string entry in configured.Split(','))
+        {
+            string name = entry.Trim();
+            if (name.Length == 0) continue;
+            if (name.Equals(GoblinFilterType, StringComparison.OrdinalIgnoreCase))
+                filterGoblins = true;
+            else if (Enum.TryParse(name, true, out LegacyQuestType type))
+                FilteredTypes.Add(type);
+            else
+                ProgressionLog.Warning($"Daily Filter Types: unknown type '{name}' ignored.");
+        }
     }
 
     private static bool HasGoblinObjective(Quest quest)
