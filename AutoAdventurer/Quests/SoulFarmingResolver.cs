@@ -26,8 +26,23 @@ internal sealed class SoulFarmingResolver
         if (controller == null || currentMap == null || popup == null)
             return null;
 
-        var maps = controller.GetAvailableMaps(true);
-        if (maps == null || maps.Count == 0) return null;
+        // Quest travel reaches many dimensions through GetAvailableMaps(false)
+        // while GetAvailableMaps(true) returned only the current one for
+        // minutes (observed 2026-10-29), so search both lists.
+        List<Map> maps = new();
+        HashSet<string> seen = new(StringComparer.Ordinal);
+        foreach (bool includeCurrent in new[] { true, false })
+        {
+            var source = controller.GetAvailableMaps(includeCurrent);
+            if (source == null) continue;
+            for (int index = 0; index < source.Count; index++)
+            {
+                Map candidate = source[index];
+                if (candidate != null && seen.Add(candidate.name))
+                    maps.Add(candidate);
+            }
+        }
+        if (maps.Count == 0) return null;
 
         string fallback = (Plugin.Config.FallbackMap.Value ?? string.Empty).Trim();
         string materialMap = (Plugin.Config.MaterialQuestMap.Value ?? string.Empty).Trim();
