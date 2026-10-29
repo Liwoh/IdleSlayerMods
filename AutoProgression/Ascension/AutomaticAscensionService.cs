@@ -108,7 +108,10 @@ internal sealed class AutomaticAscensionService
         double before = SlayerPoints.points;
         try
         {
-            manager.BuyAll();
+            // Since the October 2026 update BuyAll() only opens the "Buy all"
+            // confirmation popup, which stayed open over the game (observed in
+            // game). BuyAllAction() is the purchase the Confirm button runs.
+            manager.BuyAllAction();
         }
         catch (Exception exception)
         {
