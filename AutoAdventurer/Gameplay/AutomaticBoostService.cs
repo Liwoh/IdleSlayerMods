@@ -251,7 +251,7 @@ internal sealed class AutomaticBoostService
         cooldownReadySince = -1f;
     }
 
-    private static string GetAbilityName(Ability ability) =>
+    internal static string GetAbilityName(Ability ability) =>
         ability?.GetIl2CppType()?.Name ?? "Unknown";
 
     private static bool IsWindDash(Ability ability) =>
@@ -264,7 +264,7 @@ internal sealed class AutomaticBoostService
                string.Equals(name, nameof(WindDash), StringComparison.Ordinal);
     }
 
-    private static AbilitiesManager ResolveAbilitiesManager()
+    internal static AbilitiesManager ResolveAbilitiesManager()
     {
         AbilitiesManager singleton = AbilitiesManager.instance;
         if (singleton != null && IsSupportedAbility(singleton.selectedAbility))

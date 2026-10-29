@@ -41,6 +41,7 @@ internal sealed class QuestTravelService
     private string lockedRequiredCharacterId = string.Empty;
     private bool lockedQuestIsDaily;
     private bool lockedQuestSuppressesRage;
+    private bool lockedQuestNeedsWindDash;
     private bool lockedQuestNeedsCharacterSwitch;
     private float lockedQuestStartedAt;
     private double lockedQuestProgressBaseline;
@@ -83,6 +84,8 @@ internal sealed class QuestTravelService
          lockedQuestNeedsCharacterSwitch ||
          !string.IsNullOrEmpty(proactiveCharacterId) ||
          Time.unscaledTime < characterSwitchStableAt);
+
+    internal bool LockedQuestNeedsWindDash => lockedQuestNeedsWindDash;
 
     internal void PrioritizePostRageScan() => nextScanTime = 0f;
 
@@ -429,6 +432,8 @@ internal sealed class QuestTravelService
             {
                 lockedQuestSuppressesRage =
                     QuestCompat.Kind(locked) == LegacyQuestType.KillEnemiesWithArrows;
+                lockedQuestNeedsWindDash =
+                    QuestCompat.Kind(locked) == LegacyQuestType.WindDashKills;
                 QuestTargetSelection tracked = resolver.ResolveLocked(
                     locked, lockedTargetMapId);
                 lockedQuestNeedsCharacterSwitch =
@@ -471,7 +476,8 @@ internal sealed class QuestTravelService
                 {
                     AdventurerLog.QuestDebug(
                         $"Quest lock released: quest={lockedQuestDisplayName} [{lockedQuestId}]; " +
-                        "reason=no currently reachable target dimension; selecting another available task.");
+                        "reason=no currently reachable target dimension; selecting another available task; " +
+                        $"rejected={resolver.LastRejectReason}.");
                     ClearPendingTravel();
                     ClearQuestLock();
                 }
@@ -508,6 +514,8 @@ internal sealed class QuestTravelService
         lockedRequiredCharacterId = selection.RequiredCharacterId;
         lockedQuestIsDaily = IsDailyQuest(selection.Quest);
         lockedQuestSuppressesRage = selection.SuppressesAutomaticRage;
+        lockedQuestNeedsWindDash =
+            QuestCompat.Kind(selection.Quest) == LegacyQuestType.WindDashKills;
         lockedQuestNeedsCharacterSwitch = characters.RequiresSwitch(selection);
         lockedQuestStartedAt = Time.unscaledTime;
         lockedQuestProgressBaseline = Math.Max(0d,
@@ -1135,6 +1143,7 @@ internal sealed class QuestTravelService
         lockedRequiredCharacterId = string.Empty;
         lockedQuestIsDaily = false;
         lockedQuestSuppressesRage = false;
+        lockedQuestNeedsWindDash = false;
         lockedQuestNeedsCharacterSwitch = false;
         characterSwitchStableAt = 0f;
         nextCharacterSwitchCheckAt = 0f;

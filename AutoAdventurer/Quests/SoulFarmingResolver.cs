@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AutoAdventurer.Diagnostics;
 using Il2Cpp;
 using UnityEngine;
@@ -10,6 +11,8 @@ internal sealed class SoulFarmingResolver
     private const double ScoreEqualityTolerance = 0.000001d;
     private PopupPortals resolvedPopup;
     private bool unavailableLogged;
+    private bool availableMapsLogged;
+    private bool fallbackMissingLogged;
 
     internal SoulFarmingSelection SelectBestAvailable()
     {
@@ -21,6 +24,13 @@ internal sealed class SoulFarmingResolver
 
         var maps = controller.GetAvailableMaps(true);
         if (maps == null || maps.Count == 0) return null;
+
+        string fallback = (Plugin.Config.FallbackMap.Value ?? string.Empty).Trim();
+        if (fallback.Equals("Off", StringComparison.OrdinalIgnoreCase))
+            return null;
+        bool fixedTarget = fallback.Length > 0 &&
+            !fallback.Equals("Auto", StringComparison.OrdinalIgnoreCase);
+        List<string> listed = availableMapsLogged ? null : new List<string>();
 
         Map bestMap = null;
         double bestScore = double.MinValue;
@@ -46,9 +56,19 @@ internal sealed class SoulFarmingResolver
             }
 
             if (double.IsNaN(souls) || double.IsInfinity(souls)) continue;
+            listed?.Add($"{map.name} ({souls:0.#})");
             bool isCurrent = string.Equals(map.name, currentMapId,
                 StringComparison.Ordinal);
             if (isCurrent) currentScore = souls;
+
+            if (fixedTarget)
+            {
+                if (!map.name.Equals(fallback, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                bestMap = map;
+                bestScore = souls;
+                continue;
+            }
 
             bool isBetter = bestMap == null || souls > bestScore;
             bool tiedAndCurrent = bestMap != null && isCurrent &&
@@ -59,7 +79,23 @@ internal sealed class SoulFarmingResolver
             bestScore = souls;
         }
 
-        if (bestMap == null) return null;
+        if (listed != null)
+        {
+            availableMapsLogged = true;
+            AdventurerLog.User(
+                $"Fallback Map choices (souls score): {string.Join(", ", listed)}.");
+        }
+
+        if (bestMap == null)
+        {
+            if (fixedTarget && !fallbackMissingLogged)
+            {
+                fallbackMissingLogged = true;
+                AdventurerLog.Warning(
+                    $"Fallback Map '{fallback}' is not an available dimension; staying in the current one.");
+            }
+            return null;
+        }
         unavailableLogged = false;
         return new SoulFarmingSelection
         {
@@ -108,5 +144,10 @@ internal sealed class SoulFarmingResolver
         unavailableLogged = false;
     }
 
-    internal void Reset() => InvalidateSceneObjects();
+    internal void Reset()
+    {
+        InvalidateSceneObjects();
+        availableMapsLogged = false;
+        fallbackMissingLogged = false;
+    }
 }

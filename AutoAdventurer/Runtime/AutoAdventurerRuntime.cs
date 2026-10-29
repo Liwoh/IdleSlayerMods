@@ -26,6 +26,7 @@ public sealed class AutoAdventurerRuntime : MonoBehaviour
     private readonly SilverBoxQuestService silverBoxes = new();
     private readonly QuestElementService questElements = new();
     private readonly QuestTravelService questTravel = new();
+    private readonly QuestAbilityService questAbilities = new();
     private bool automaticRageEnabled;
     private bool automaticBoostEnabled;
     private bool questAutomationEnabled;
@@ -108,6 +109,8 @@ public sealed class AutoAdventurerRuntime : MonoBehaviour
                 if (!wasQuestReady)
                     logNextQuestResume = false;
                 questTravel.Tick(Time.unscaledTime, questAutomationEnabled);
+                questAbilities.Tick(Time.unscaledTime,
+                    questAutomationEnabled && questTravel.LockedQuestNeedsWindDash);
             }
             else if (wasQuestReady)
             {

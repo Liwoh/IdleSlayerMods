@@ -67,15 +67,59 @@ internal static class QuestCompat
         built |= AddQuests(quests, list.dailyQuests, "daily");
         built |= AddQuests(quests, list.weeklyQuests, "weekly");
         built |= AddQuests(quests, list.eventQuests, "event");
+        int raw = Count(list.mainQuests) + Count(list.dailyQuests) +
+                  Count(list.weeklyQuests) + Count(list.eventQuests);
         if (list.collabQuests != null)
         {
             built = true;
             foreach (var entry in list.collabQuests)
+            {
                 AddQuests(quests, entry.Value, "collab");
+                raw += Count(entry.Value);
+            }
         }
 
+        // The game fills the sections only once the quest panel has been
+        // shown; until then rebuild the active list from the catalogue.
+        if (built && raw == 0) AddCatalogueQuests(quests);
         return built ? quests : null;
     }
+
+    private static int Count(Il2CppSystem.Collections.Generic.List<Quest> source) =>
+        source != null ? source.Count : 0;
+
+    // Same availability rules as the allQuests supplement used for travel.
+    private static void AddCatalogueQuests(List<Quest> target)
+    {
+        var all = PlayerInventory.instance?.allQuests;
+        if (all == null) return;
+        for (int index = 0; index < all.Count; index++)
+        {
+            Quest quest = all[index];
+            if (quest == null || quest is DailyQuest || quest is WeeklyQuest ||
+                quest.isClaimed || quest.IsCompleted() || !IsEventLive(quest))
+                continue;
+            bool explicitElementQuest =
+                Kind(quest) == LegacyQuestType.KillEnemiesOfType &&
+                quest.enemyType != null;
+            Upgrade bundle = quest.bundleRequired;
+            bool available = explicitElementQuest
+                ? bundle == null || bundle.bought ||
+                  (bundle.isSpecialUnlock && bundle.specialUnlocked)
+                : quest.CanBeCompleted();
+            if (available) target.Add(quest);
+        }
+        AdventurerLog.QuestDebug(
+            $"[QuestCompat] quest panel not shown yet; catalogue fallback kept {target.Count} quest(s).");
+    }
+
+    // Quest types of the October 2026 system that only count in Quest.map.
+    internal static BaseMap RequiredMap(Quest quest) =>
+        quest.type != null && quest.type.requiresMap ? quest.map : null;
+
+    internal static bool IsVisitLocation(Quest quest) =>
+        quest.type != null &&
+        quest.type.name.Replace(" ", string.Empty) == "VisitLocation";
 
     private static readonly Dictionary<string, string> LoggedSectionCounts = new();
 
