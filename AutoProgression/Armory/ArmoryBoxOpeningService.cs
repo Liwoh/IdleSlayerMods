@@ -83,8 +83,17 @@ internal sealed class ArmoryBoxOpeningService
         LootBoxManager manager = LootBoxManager.instance;
         if (manager != null && manager.IsBeingOpened())
         {
-            Notify("Wait for the current loot-box animation to finish.", false);
-            return;
+            // IsBeingOpened() can stay true after an earlier opening while
+            // no loot-box window is on screen (seen on 2026-10-30).
+            bool visible = manager.animationIcon != null &&
+                           manager.animationIcon.gameObject.activeInHierarchy;
+            if (visible)
+            {
+                Notify("Wait for the current loot-box animation to finish.", false);
+                return;
+            }
+            ProgressionLog.ArmoryDebug(
+                "Loot-box manager reports an opening but its window is hidden; opening anyway.");
         }
 
         int requested = Math.Clamp(Plugin.Config.ArmoryBoxesPerPress.Value, 1, 100);
