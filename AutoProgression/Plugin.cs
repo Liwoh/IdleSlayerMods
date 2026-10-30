@@ -12,6 +12,7 @@ namespace AutoProgression;
 
 public class Plugin : MelonMod
 {
+    private static UnityEngine.GameObject runtimeObject;
     internal static AutoProgressionConfig Config;
     internal static ModHelper ModHelperInstance;
     internal static readonly MelonLogger.Instance Logger = Melon<Plugin>.Logger;
@@ -46,6 +47,9 @@ public class Plugin : MelonMod
     public override void OnSceneWasLoaded(int buildIndex, string sceneName)
     {
         if (sceneName != "Game") return;
-        ModUtils.RegisterComponent<AutoProgressionRuntime>();
+        // A cloud-save reload loads "Game" again without removing the first
+        // runtime, which then ran twice (2026-10-31). Keep only the new one.
+        if (runtimeObject != null) UnityEngine.Object.Destroy(runtimeObject);
+        runtimeObject = ModUtils.RegisterComponent<AutoProgressionRuntime>();
     }
 }

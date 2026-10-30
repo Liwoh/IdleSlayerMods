@@ -15,6 +15,7 @@ public sealed class AutoClimberPlugin : MelonMod
     internal static AutoClimberConfig Config;
     internal static ModHelper ModHelperInstance;
     private static bool harmonyPatchesApplied;
+    private static UnityEngine.GameObject runtimeObject;
     internal static readonly MelonLogger.Instance Logger =
         Melon<AutoClimberPlugin>.Logger;
     
@@ -47,7 +48,10 @@ public sealed class AutoClimberPlugin : MelonMod
     {
         if (sceneName != "Game") return;
         Application.runInBackground = true;
-        ModUtils.RegisterComponent<AutoClimberRuntime>();
+        // A cloud-save reload loads "Game" again without removing the first
+        // runtime, which then ran twice (2026-10-31). Keep only the new one.
+        if (runtimeObject != null) UnityEngine.Object.Destroy(runtimeObject);
+        runtimeObject = ModUtils.RegisterComponent<AutoClimberRuntime>();
 
         // AutoClimberRuntime must be registered in the IL2CPP domain before
         // Harmony resolves patches that target its managed methods.
