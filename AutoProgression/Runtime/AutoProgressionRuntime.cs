@@ -42,6 +42,7 @@ public sealed class AutoProgressionRuntime : MonoBehaviour
     private readonly ArmoryBoxOpeningService armoryBoxes = new();
     private readonly SilverBoxClaimService silverBoxes = new();
     private readonly CrawlerEyePurchaseService crawlerEyes = new();
+    private readonly ResourceSnapshotService resourceSnapshots = new();
     private bool autoProgressionEnabled;
     private bool wasReady;
     private bool readyLogged;
@@ -62,6 +63,7 @@ public sealed class AutoProgressionRuntime : MonoBehaviour
         armoryBoxes.Tick();
         crawlerEyes.Tick(Time.unscaledTime);
         silverBoxes.Tick(Time.unscaledTime);
+        resourceSnapshots.Tick(Time.unscaledTime);
 
         RefreshToggleKey();
         if (Input.GetKeyDown(toggleKey))
