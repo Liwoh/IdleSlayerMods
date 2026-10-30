@@ -1231,12 +1231,14 @@ internal sealed class QuestTravelService
         countedNormalQuestInstances.Clear();
         abnormalQuestReasons.Clear();
         Reset();
+        FarmMap.Clear();
         AdventurerLog.QuestDebug(
             "Quest completion session started; counters reset to zero.");
     }
 
     internal void EndSession()
     {
+        FarmMap.Clear();
         FlushPendingCompletionLogs(
             null, "Current task: none; Quest Automation disabled.");
         int total = sessionDailyQuestsCompleted +

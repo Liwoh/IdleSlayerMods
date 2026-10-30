@@ -162,7 +162,7 @@ internal sealed class SoulFarmingResolver
 
     // Material names dropped by the current evolution stage of the map's
     // enemies; empty when none of them drops a material.
-    private static string MaterialDrops(BaseMap map)
+    internal static string MaterialDrops(BaseMap map)
     {
         var enemies = map?.enemies;
         if (enemies == null) return string.Empty;

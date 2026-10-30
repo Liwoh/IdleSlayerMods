@@ -145,9 +145,9 @@ internal sealed class QuestTargetResolver
                 return false;
             }
             if (QuestCompat.Kind(quest) == LegacyQuestType.WindDashKills &&
-                !Plugin.Config.WindDashKillQuests.Value)
+                !Plugin.Config.WindDashKillQuests.Value && !IsStoryQuest(quest))
             {
-                LastRejectReason = "Wind Dash kill quests are disabled";
+                LastRejectReason = "Daily and Weekly Wind Dash kill quests are disabled";
                 return false;
             }
 
