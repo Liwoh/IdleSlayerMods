@@ -105,6 +105,12 @@ internal sealed class QuestTravelService
 
         try
         {
+            if (FarmMap.Observe())
+            {
+                ClearPendingTravel();
+                ClearQuestLock();
+                nextScanTime = now;
+            }
             ObserveUltraAscensionReset();
             UpdateRandomEventState(now);
             if (HasMapActivityBlocker)
@@ -833,6 +839,7 @@ internal sealed class QuestTravelService
         if (selection.Map == null || !selection.Map.IsAvailable()) return;
 
         portalRequestedAt = now;
+        FarmMap.NoteModTravel(selection.MapId);
         portal.SpawnPortal(selection.Map, false);
         AdventurerLog.User(
             $"Quest portal opened: quest={selection.QuestDisplayName} " +
@@ -925,6 +932,7 @@ internal sealed class QuestTravelService
         if (selection.Map == null || !selection.Map.IsAvailable()) return;
 
         portalRequestedAt = now;
+        FarmMap.NoteModTravel(selection.MapId);
         portal.SpawnPortal(selection.Map, false);
         AdventurerLog.User(
             $"Soul-farming portal opened: map={selection.MapId}; " +
