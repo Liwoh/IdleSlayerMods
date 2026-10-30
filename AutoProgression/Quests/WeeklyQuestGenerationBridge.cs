@@ -36,7 +36,12 @@ internal static class WeeklyQuestGenerationBridge
 
         PendingGenerations.Enqueue(newlyActive.ToArray());
         activeBeforeGeneration = null;
+        GenerationCount++;
     }
+
+    // Incremented for every native Weekly generation (new set or extra
+    // quests), never for rerolls.
+    internal static int GenerationCount { get; private set; }
 
     internal static void BeginManualReroll() => manualRerollDepth++;
 
