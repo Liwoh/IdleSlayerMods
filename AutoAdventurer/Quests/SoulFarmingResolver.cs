@@ -44,9 +44,11 @@ internal sealed class SoulFarmingResolver
         }
         if (maps.Count == 0) return null;
 
-        string fallback = (Plugin.Config.FallbackMap.Value ?? string.Empty).Trim();
+        string fallback = FarmMap.Active
+            ? FarmMap.MapId
+            : (Plugin.Config.FallbackMap.Value ?? string.Empty).Trim();
         string materialMap = (Plugin.Config.MaterialQuestMap.Value ?? string.Empty).Trim();
-        bool materialMode = materialQuestActive &&
+        bool materialMode = !FarmMap.Active && materialQuestActive &&
             !materialMap.Equals("Off", StringComparison.OrdinalIgnoreCase);
         if (materialMode && !materialMap.Equals("Auto", StringComparison.OrdinalIgnoreCase))
             fallback = materialMap;

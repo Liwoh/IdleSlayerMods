@@ -269,6 +269,7 @@ internal sealed class DailyQuestFilterService
     private static bool ShouldReroll(DailyQuest quest)
     {
         if (quest == null) return false;
+        if (FarmMapBridge.ShouldReroll(quest)) return true;
         RefreshFilterTypes();
         if (filterGoblins && HasGoblinObjective(quest)) return true;
         return FilteredTypes.Contains(QuestCompat.Kind(quest));

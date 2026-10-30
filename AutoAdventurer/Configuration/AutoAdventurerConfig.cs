@@ -45,6 +45,8 @@ internal sealed class AutoAdventurerConfig(string configName) : BaseConfig(confi
     internal MelonPreferences_Entry<string> FallbackMap;
     internal MelonPreferences_Entry<string> MaterialQuestMap;
     internal MelonPreferences_Entry<bool> PrioritizeStoryQuests;
+    internal MelonPreferences_Entry<string> FarmMap;
+    internal MelonPreferences_Entry<bool> WindDashKillQuests;
 
     internal double MinimumDimensionStayMinutesValue =>
         Math.Max(0d, MinimumDimensionStayMinutes.Value);
@@ -213,6 +215,10 @@ internal sealed class AutoAdventurerConfig(string configName) : BaseConfig(confi
             "Always pick an executable story (normal or event) kill quest before any Daily or Weekly one. Within each group the usual reward priority and smallest kill count apply.");
         MaterialQuestMap = Bind(QuestAutomationSection, "Material Quest Map", "Auto",
             "Where to go when no kill quest can be done but a Get Materials quest is active. Auto = the best soul score among dimensions where an enemy's current stage drops a material (listed in the log). Off = ignore material quests. Or an internal map name.");
+        FarmMap = Bind(QuestAutomationSection, "Farm Map", "Off",
+            "Stay on one dimension to farm it. Off = normal behaviour. Current = the dimension you are in; travelling there yourself changes it. Or an internal map name. Daily and Weekly kill quests are only done when they can be done there, and the fallback always returns there. Story quests keep their priority and still travel. AutoProgression can reroll the other Daily quests (Reroll Dailies Outside Farm Map).");
+        WindDashKillQuests = Bind(QuestAutomationSection, "Wind Dash Kill Quests", true,
+            "Do Wind Dash kill quests (switching to Wind Dash for them). When false, those quests are never selected.");
 
         ToggleKey = Bind(RageSection, "Toggle Key", "K",
             "Keyboard key used to enable or disable Automatic Rage.");

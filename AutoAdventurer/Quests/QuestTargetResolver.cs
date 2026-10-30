@@ -20,7 +20,13 @@ internal sealed class QuestTargetResolver
         {
             if (!IsExecutableKillQuest(quest)) continue;
 
-            QuestTargetSelection candidate = ResolveMap(quest);
+            bool farmBound = FarmMap.Active && !IsStoryQuest(quest);
+            QuestTargetSelection candidate = farmBound
+                ? ResolveMap(quest, FarmMap.MapId)
+                : ResolveMap(quest);
+            if (farmBound && candidate != null && !string.Equals(
+                    candidate.MapId, FarmMap.MapId, StringComparison.Ordinal))
+                continue;
             if (candidate == null)
             {
                 LogUnresolvedElementQuestOnce(quest);
@@ -65,6 +71,17 @@ internal sealed class QuestTargetResolver
                               LegacyQuestType.KillEnemiesWithCharacter;
         return background ? 0 : 2;
     }
+
+    internal static bool IsKillKind(Quest quest) =>
+        QuestCompat.Kind(quest) is LegacyQuestType.KillEnemies or
+            LegacyQuestType.KillEnemiesWithArrows or
+            LegacyQuestType.KillFlyers or
+            LegacyQuestType.KillGiants or
+            LegacyQuestType.KillEnemiesWithRageMode or
+            LegacyQuestType.KillEnemiesWithCharacter or
+            LegacyQuestType.KillEnemiesOfType or
+            LegacyQuestType.KillShinyEnemies or
+            LegacyQuestType.WindDashKills;
 
     // Daily and Weekly quests are recycled components; everything else is a
     // story or event quest from the normal quest catalogue.
@@ -122,18 +139,15 @@ internal sealed class QuestTargetResolver
                 return false;
             }
 
-            bool killType = QuestCompat.Kind(quest) is LegacyQuestType.KillEnemies or
-                LegacyQuestType.KillEnemiesWithArrows or
-                LegacyQuestType.KillFlyers or
-                LegacyQuestType.KillGiants or
-                LegacyQuestType.KillEnemiesWithRageMode or
-                LegacyQuestType.KillEnemiesWithCharacter or
-                LegacyQuestType.KillEnemiesOfType or
-                LegacyQuestType.KillShinyEnemies or
-                LegacyQuestType.WindDashKills;
-            if (!killType || QuestCompat.IsVisitLocation(quest))
+            if (!IsKillKind(quest) || QuestCompat.IsVisitLocation(quest))
             {
                 LastRejectReason = $"not a kill quest ({QuestCompat.Kind(quest)})";
+                return false;
+            }
+            if (QuestCompat.Kind(quest) == LegacyQuestType.WindDashKills &&
+                !Plugin.Config.WindDashKillQuests.Value)
+            {
+                LastRejectReason = "Wind Dash kill quests are disabled";
                 return false;
             }
 
