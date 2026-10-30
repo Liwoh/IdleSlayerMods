@@ -44,8 +44,22 @@ internal sealed class WeeklyQuestFilterService
             return false;
         if (seenGeneration != WeeklyQuestGenerationBridge.GenerationCount)
         {
+            bool firstCheck = seenGeneration < 0;
             seenGeneration = WeeklyQuestGenerationBridge.GenerationCount;
             settledIds.Clear();
+            // Settled ids do not survive a restart: a 162/180 chest weekly was
+            // rerolled on 2026-10-30. At start-up keep weeklies at 50 % or
+            // more. Later, a template can come back with old progress (portals
+            // also count special-stage portals), so fresh sets are filtered
+            // whatever their progress.
+            if (firstCheck)
+            {
+                foreach (WeeklyQuest quest in ActiveUnfinishedWeeklies())
+                {
+                    if (quest.questGoal > 0 && quest.questCurrentGoal * 2 >= quest.questGoal)
+                        settledIds.Add(quest.GetInstanceID());
+                }
+            }
         }
 
         float now = Time.unscaledTime;
@@ -123,9 +137,6 @@ internal sealed class WeeklyQuestFilterService
         foreach (WeeklyQuest quest in ActiveUnfinishedWeeklies())
         {
             if (settledIds.Contains(quest.GetInstanceID())) continue;
-            // Never throw away progress: settled ids do not survive a game
-            // restart (a 162/180 chest weekly was rerolled on 2026-10-30).
-            if (quest.questCurrentGoal > 0) continue;
             bool reroll = KeepOrder.Count > 0
                 ? Rank(quest) >= acceptedLevel
                 : FarmMapBridge.ShouldReroll(quest);

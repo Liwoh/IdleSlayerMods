@@ -15,6 +15,7 @@ namespace AutoBonusRunner;
 
 public sealed class Plugin : MelonMod
 {
+    private static UnityEngine.GameObject runtimeObject;
     internal static AutoBonusRunnerConfig Config;
     internal static ModHelper ModHelperInstance;
     private static bool harmonyInventoryLogged;
@@ -69,7 +70,10 @@ public sealed class Plugin : MelonMod
     {
         if (sceneName != "Game") return;
         Application.runInBackground = true;
-        ModUtils.RegisterComponent<AutoBonusRunnerRuntime>();
+        // A cloud-save reload loads "Game" again without removing the first
+        // runtime, which then ran twice (2026-10-31). Keep only the new one.
+        if (runtimeObject != null) UnityEngine.Object.Destroy(runtimeObject);
+        runtimeObject = ModUtils.RegisterComponent<AutoBonusRunnerRuntime>();
         if (!harmonyInventoryLogged)
         {
             harmonyInventoryLogged = true;
