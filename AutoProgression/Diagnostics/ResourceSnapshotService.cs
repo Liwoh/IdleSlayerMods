@@ -126,6 +126,14 @@ internal sealed class ResourceSnapshotService
         }
         materials.Sort(StringComparer.Ordinal);
         parts.Add("materials: " + string.Join(", ", materials));
+
+        var weeklies = new List<string>();
+        foreach (WeeklyQuest quest in UnityEngine.Resources.FindObjectsOfTypeAll<WeeklyQuest>())
+        {
+            if (quest == null || !quest.active || quest.isClaimed) continue;
+            weeklies.Add($"{Quests.QuestCompat.Kind(quest)} {quest.questCurrentGoal}/{quest.questGoal}");
+        }
+        parts.Add("weeklies: " + string.Join(", ", weeklies));
         return string.Join("; ", parts);
     }
 
