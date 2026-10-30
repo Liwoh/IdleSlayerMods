@@ -11,6 +11,48 @@ internal sealed class ResourceSnapshotService
     private const float IntervalSeconds = 300f;
     private const float FirstSnapshotDelaySeconds = 30f;
     private float nextSnapshotTime = -1f;
+    private bool catalogueLogged;
+
+    // Once per session: every Daily and Weekly quest the game can draw, by
+    // type with goal range, plus the egg caps.
+    private static void LogCatalogue()
+    {
+        LogQuestPool("Daily", UnityEngine.Resources.FindObjectsOfTypeAll<DailyQuest>());
+        LogQuestPool("Weekly", UnityEngine.Resources.FindObjectsOfTypeAll<WeeklyQuest>());
+        Drops special = Drops.list;
+        if (special != null)
+            ProgressionLog.User(
+                $"[Catalogue] egg caps: dragon={Cap(special.DragonEgg)}, simurgh={Cap(special.SimurghEgg)}.");
+    }
+
+    private static void LogQuestPool<T>(string label, IEnumerable<T> quests) where T : Quest
+    {
+        var byType = new SortedDictionary<string, (int count, int active, int min, int max)>(StringComparer.Ordinal);
+        foreach (T quest in quests)
+        {
+            if (quest == null) continue;
+            string key = Quests.QuestCompat.Kind(quest).ToString();
+            if (quest.enemyToKill != null) key += ":target";
+            else if (quest.enemyType != null) key += ":element";
+            bool active = quest.TryCast<DailyQuest>()?.active ?? quest.TryCast<WeeklyQuest>()?.active ?? false;
+            byType.TryGetValue(key, out var entry);
+            entry = (entry.count + 1, entry.active + (active ? 1 : 0),
+                entry.count == 0 ? quest.questGoal : Math.Min(entry.min, quest.questGoal),
+                Math.Max(entry.max, quest.questGoal));
+            byType[key] = entry;
+        }
+        var parts = new List<string>();
+        foreach (var pair in byType)
+            parts.Add($"{pair.Key}={pair.Value.count} (goal {pair.Value.min}-{pair.Value.max}, active {pair.Value.active})");
+        ProgressionLog.User($"[Catalogue] {label} pool: " + string.Join("; ", parts));
+    }
+
+    private static string Cap(Drop drop)
+    {
+        if (drop == null) return "?";
+        try { return Format(drop.GetMaxAmount()); }
+        catch { return Format(drop.maxAmount); }
+    }
 
     internal void Tick(float now)
     {
@@ -23,6 +65,11 @@ internal sealed class ResourceSnapshotService
         try
         {
             ProgressionLog.User("[Resources] " + Describe(inventory));
+            if (!catalogueLogged)
+            {
+                catalogueLogged = true;
+                LogCatalogue();
+            }
         }
         catch (Exception exception)
         {
