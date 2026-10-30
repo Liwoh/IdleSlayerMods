@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using AutoProgression.Diagnostics;
 using Il2Cpp;
@@ -5,10 +6,14 @@ using UnityEngine;
 
 namespace AutoProgression.Quests;
 
-// Rerolls active Weekly Quests that cannot be done on the farm map (see
-// FarmMapBridge), one at a time, every 30 seconds.
-internal sealed class WeeklyFarmFilterService
+// Rerolls active Weekly Quests whose type is not in Weekly Keep Types, or
+// that cannot be done on the farm map (see FarmMapBridge), one at a time,
+// every 30 seconds.
+internal sealed class WeeklyQuestFilterService
 {
+    private static string parsedKeepTypes;
+    private static readonly HashSet<LegacyQuestType> KeepTypes = new();
+
     private const int MaximumRerollsPerPass = 50;
     private const float PassIntervalSeconds = 30f;
     private const float PostRerollSettleSeconds = 0.5f;
@@ -25,7 +30,9 @@ internal sealed class WeeklyFarmFilterService
 
     internal bool Tick()
     {
-        if (!Plugin.Config.RerollQuestsOutsideFarmMap.Value) return false;
+        RefreshKeepTypes();
+        if (!Plugin.Config.RerollQuestsOutsideFarmMap.Value && KeepTypes.Count == 0)
+            return false;
         float now = Time.unscaledTime;
         if (now < readyAt) return false;
         if (!processing)
@@ -43,7 +50,7 @@ internal sealed class WeeklyFarmFilterService
         if (attempts >= MaximumRerollsPerPass || retries >= MaximumRetries)
         {
             ProgressionLog.Warning(
-                $"Weekly farm-map filter stopped after {attempts} reroll(s) and {retries} retries.");
+                $"Weekly Quest filter stopped after {attempts} reroll(s) and {retries} retries.");
             return Finish();
         }
 
@@ -65,7 +72,7 @@ internal sealed class WeeklyFarmFilterService
             if (reroll.weeklyQuestToReroll?.GetInstanceID() != target.GetInstanceID())
                 return Retry(now);
             ProgressionLog.Debug(
-                $"Rerolling Weekly Quest outside the farm map: Id={target.GetInstanceID()}, " +
+                $"Rerolling Weekly Quest (keep types or farm map): Id={target.GetInstanceID()}, " +
                 $"Type={QuestCompat.Kind(target)}.");
             reroll.RewardForShowing();
         }
@@ -73,7 +80,7 @@ internal sealed class WeeklyFarmFilterService
         {
             // The native call may replace the quest before a UI update throws.
             ProgressionLog.Debug(
-                $"Weekly farm-map reroll returned {exception.GetType().Name}; checking the quest.");
+                $"Weekly Quest reroll returned {exception.GetType().Name}; checking the quest.");
         }
 
         bool stillActive;
@@ -95,9 +102,29 @@ internal sealed class WeeklyFarmFilterService
             bool claimable;
             try { claimable = quest.CanBeClaimed(); }
             catch { continue; }
-            if (!claimable && FarmMapBridge.ShouldReroll(quest)) return quest;
+            if (claimable) continue;
+            if ((KeepTypes.Count > 0 && !KeepTypes.Contains(QuestCompat.Kind(quest))) ||
+                FarmMapBridge.ShouldReroll(quest))
+                return quest;
         }
         return null;
+    }
+
+    private static void RefreshKeepTypes()
+    {
+        string configured = Plugin.Config.WeeklyKeepTypes.Value ?? string.Empty;
+        if (configured == parsedKeepTypes) return;
+        parsedKeepTypes = configured;
+        KeepTypes.Clear();
+        foreach (string entry in configured.Split(','))
+        {
+            string name = entry.Trim();
+            if (name.Length == 0) continue;
+            if (Enum.TryParse(name, true, out LegacyQuestType type))
+                KeepTypes.Add(type);
+            else
+                ProgressionLog.Warning($"Weekly Keep Types: unknown type '{name}' ignored.");
+        }
     }
 
     private bool Retry(float now)
@@ -110,7 +137,7 @@ internal sealed class WeeklyFarmFilterService
     private bool Finish()
     {
         if (attempts > 0)
-            ProgressionLog.User($"Weekly Quests filtered for the farm map after {attempts} reroll(s).");
+            ProgressionLog.User($"Weekly Quests filtered after {attempts} reroll(s).");
         processing = false;
         attempts = 0;
         retries = 0;
