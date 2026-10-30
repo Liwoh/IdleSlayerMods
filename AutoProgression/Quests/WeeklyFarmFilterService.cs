@@ -9,7 +9,7 @@ namespace AutoProgression.Quests;
 // FarmMapBridge), one at a time, every 30 seconds.
 internal sealed class WeeklyFarmFilterService
 {
-    private const int MaximumRerollsPerPass = 200;
+    private const int MaximumRerollsPerPass = 50;
     private const float PassIntervalSeconds = 30f;
     private const float PostRerollSettleSeconds = 0.5f;
     private const float RetrySeconds = 1f;
