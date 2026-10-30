@@ -36,7 +36,7 @@ public sealed class AutoProgressionRuntime : MonoBehaviour
     private readonly QuestAutomationService quests = new();
     private readonly WeeklyRageQuestService weeklyRageQuests = new();
     private readonly DailyQuestFilterService dailyQuestFilter = new();
-    private readonly WeeklyFarmFilterService weeklyFarmFilter = new();
+    private readonly WeeklyQuestFilterService weeklyQuestFilter = new();
     private readonly SkillPurchaseService skillPurchases = new();
     private readonly BlockedSkillService blockedSkills = new();
     private readonly EquipmentPurchaseService equipmentPurchases = new();
@@ -159,16 +159,16 @@ public sealed class AutoProgressionRuntime : MonoBehaviour
             // Do not let normal quest maintenance refresh the same native list
             // while a generated Weekly Quest is being rerolled.
             if (!weeklyRageQuests.IsProcessing && !dailyQuestFilter.IsProcessing &&
-                !weeklyFarmFilter.IsProcessing)
+                !weeklyQuestFilter.IsProcessing)
                 quests.Tick(now);
 
             if (weeklyRageQuests.Tick())
                 quests.Reset();
-            if (!weeklyRageQuests.IsProcessing && !weeklyFarmFilter.IsProcessing &&
+            if (!weeklyRageQuests.IsProcessing && !weeklyQuestFilter.IsProcessing &&
                 dailyQuestFilter.Tick())
                 quests.Reset();
             if (!weeklyRageQuests.IsProcessing && !dailyQuestFilter.IsProcessing &&
-                weeklyFarmFilter.Tick())
+                weeklyQuestFilter.Tick())
                 quests.Reset();
         }
         else
@@ -177,7 +177,7 @@ public sealed class AutoProgressionRuntime : MonoBehaviour
             DailyQuestGenerationBridge.DiscardPending();
             weeklyRageQuests.Reset();
             dailyQuestFilter.Reset();
-            weeklyFarmFilter.Reset();
+            weeklyQuestFilter.Reset();
             quests.Reset();
         }
         TickPurchases(now);
@@ -248,7 +248,7 @@ public sealed class AutoProgressionRuntime : MonoBehaviour
         {
             weeklyRageQuests.Reset();
             dailyQuestFilter.Reset();
-            weeklyFarmFilter.Reset();
+            weeklyQuestFilter.Reset();
         }
         skillPurchases.Reset();
         equipmentPurchases.Reset();

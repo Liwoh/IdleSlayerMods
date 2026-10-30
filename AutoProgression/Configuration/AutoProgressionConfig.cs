@@ -46,6 +46,7 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
     internal MelonPreferences_Entry<bool> FilterActiveDailyQuests;
     internal MelonPreferences_Entry<string> DailyFilterTypes;
     internal MelonPreferences_Entry<bool> RerollQuestsOutsideFarmMap;
+    internal MelonPreferences_Entry<string> WeeklyKeepTypes;
     internal MelonPreferences_Entry<bool> EnableCraftableAutomation;
     internal MelonPreferences_Entry<bool> EnableRagePill;
     internal MelonPreferences_Entry<bool> EnableWhetstone;
@@ -164,6 +165,8 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
             "Comma-separated Daily Quest types rerolled by both filters. Goblin = any Goblin kill objective. Other values: ChestHuntChests, HitRandomBoxes, HitRandomSilverBoxes, Boost, UseRageMode, BonusStage, BonusStageSections, CraftTemporaryItems, GetMaterials, CompleteAscendingHeights, CompleteGrappleRuns, or any other legacy quest type name.");
         RerollQuestsOutsideFarmMap = Bind("Quests", "Reroll Quests Outside Farm Map", false,
             "Every 30 seconds, reroll Daily and Weekly Quests that cannot be done on AutoAdventurer's Farm Map (kill quests for enemies that are not there, portal quests), until only local quests remain. Disabled Wind Dash kill quests are rerolled even without a Farm Map. Needs AutoAdventurer.");
+        WeeklyKeepTypes = Bind("Quests", "Weekly Keep Types", string.Empty,
+            "Comma-separated Weekly Quest types to keep; every 30 seconds any other active Weekly Quest is rerolled, even if started. Empty = off. The game draws ChestHuntChests, CompleteDailyQuests, GoThroughPortals and KillEnemiesWithRageMode.");
         ResetPortalCooldown = BindMigrated(
             "Quests", "Reset Portal Cooldown", "Quests - Reset Portal Cooldown", true,
             "Keep the normal Portal cooldown at zero while AutoProgression is active.", migrateLegacyValues);
