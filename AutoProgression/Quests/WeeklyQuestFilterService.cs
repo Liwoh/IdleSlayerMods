@@ -123,6 +123,9 @@ internal sealed class WeeklyQuestFilterService
         foreach (WeeklyQuest quest in ActiveUnfinishedWeeklies())
         {
             if (settledIds.Contains(quest.GetInstanceID())) continue;
+            // Never throw away progress: settled ids do not survive a game
+            // restart (a 162/180 chest weekly was rerolled on 2026-10-30).
+            if (quest.questCurrentGoal > 0) continue;
             bool reroll = KeepOrder.Count > 0
                 ? Rank(quest) >= acceptedLevel
                 : FarmMapBridge.ShouldReroll(quest);
