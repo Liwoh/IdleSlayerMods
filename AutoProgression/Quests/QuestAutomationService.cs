@@ -158,6 +158,11 @@ internal sealed class QuestAutomationService
                 result.Add(quest);
         }
 
+        // The UI sections are only rebuilt while the quest panel is shown, so
+        // story quests unlocked since then are missing from them. Unclaimed,
+        // they block the next story quests. The catalogue is authoritative.
+        AddClaimableCatalogueQuests(result, seen);
+
         // Daily and Weekly candidates come from their authoritative live
         // ScriptableObjects instead of QuestCompat.ListedQuests(QuestsList).
         foreach (DailyQuest daily in Resources.FindObjectsOfTypeAll<DailyQuest>())
@@ -186,6 +191,36 @@ internal sealed class QuestAutomationService
         }
 
         return result;
+    }
+
+    private static void AddClaimableCatalogueQuests(
+        List<Quest> result, HashSet<int> seen)
+    {
+        PlayerInventory inventory = PlayerInventory.instance;
+        if (inventory == null || inventory.allQuests == null) return;
+
+        var all = inventory.allQuests;
+        for (int index = 0; index < all.Count; index++)
+        {
+            Quest quest = all[index];
+            if (quest == null) continue;
+            try
+            {
+                if (quest.isClaimed ||
+                    quest.TryCast<DailyQuest>() != null ||
+                    quest.TryCast<WeeklyQuest>() != null ||
+                    (quest.mapEvent != null && !quest.EventAvailable()) ||
+                    !quest.CanBeClaimed())
+                    continue;
+
+                if (seen.Add(quest.GetInstanceID()))
+                    result.Add(quest);
+            }
+            catch
+            {
+                // An unreadable catalogue entry is not a safe claim candidate.
+            }
+        }
     }
 
     private ClaimResult TryClaimOneCompleted(List<Quest> quests)
