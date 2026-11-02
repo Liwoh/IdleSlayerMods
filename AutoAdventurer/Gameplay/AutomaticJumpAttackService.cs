@@ -56,6 +56,12 @@ internal sealed class AutomaticJumpAttackService
     private float boxPlayerStationarySince = -1f;
     private bool hasBoxPlayerY;
     private bool boxTargetLogged;
+    // Diagnostics: the box being aimed at, to log whether each attempt hits
+    // and how high the player is when the box passes over it.
+    private RandomBox boxTargetNormal;
+    private SpecialRandomBox boxTargetSpecial;
+    private float boxJumpStartedAt = -1f;
+    private bool boxAlignmentLogged;
 
     /// <summary>
     /// Movement abilities must wait for the entire lifetime of any active
@@ -118,9 +124,17 @@ internal sealed class AutomaticJumpAttackService
                 player,
                 out untrackedBoxActive,
                 out untrackedBoxHorizontalDistance,
-                out int boxTargetId);
+                out int boxTargetId,
+                out RandomBox normalTarget,
+                out SpecialRandomBox specialTarget);
             if (untrackedBoxActive)
             {
+                if (normalTarget != null || specialTarget != null)
+                {
+                    boxTargetNormal = normalTarget;
+                    boxTargetSpecial = specialTarget;
+                }
+                LogBoxAlignment(player, now);
                 ObserveBoxApproach(now, boxTargetId,
                     untrackedBoxHorizontalDistance);
                 untrackedBoxApproaching =
@@ -142,8 +156,10 @@ internal sealed class AutomaticJumpAttackService
             {
                 boxTargetLogged = false;
                 AdventurerLog.MovementDebug(
-                    "Untracked Random Box cleared; normal jumping and movement " +
+                    $"Untracked Random Box cleared; result={BoxOutcome()}; " +
+                    $"jumped={boxJumpAttempted}; normal jumping and movement " +
                     "abilities resumed.");
+                ClearBoxDiagnostics();
             }
         }
 
@@ -173,9 +189,11 @@ internal sealed class AutomaticJumpAttackService
                 releaseBoxJumpAt = now + holdSeconds;
                 nextJumpAttemptTime = releaseBoxJumpAt +
                                       RetryJumpAfterRejectedInputSeconds;
+                boxJumpStartedAt = now;
                 AdventurerLog.MovementDebug(
                     $"Untracked Random Box jump committed; " +
                     $"horizontalLead={untrackedBoxHorizontalDistance:0.###} viewport; " +
+                    $"verticalGap={BoxVerticalGap(player):0.###} viewport; " +
                     $"triggerLead={currentBoxJumpLead:0.###}; " +
                     $"closingSpeed={estimatedBoxClosingSpeed:0.###} viewport/s; " +
                     $"hold={holdSeconds:0.###}s.");
@@ -355,9 +373,13 @@ internal sealed class AutomaticJumpAttackService
         PlayerMovement player,
         out bool active,
         out float horizontalDistance,
-        out int targetId)
+        out int targetId,
+        out RandomBox normalTarget,
+        out SpecialRandomBox specialTarget)
     {
         active = false;
+        normalTarget = null;
+        specialTarget = null;
         Transform boxTransform = null;
         float closestDistance = float.MaxValue;
         AscensionSkills skills = AscensionSkills.list;
@@ -373,8 +395,9 @@ internal sealed class AutomaticJumpAttackService
                     !box.gameObject.activeInHierarchy)
                     continue;
                 active = true;
-                ConsiderBox(player.transform, box.transform,
-                    ref boxTransform, ref closestDistance);
+                if (ConsiderBox(player.transform, box.transform,
+                        ref boxTransform, ref closestDistance))
+                    normalTarget = box;
             }
         }
 
@@ -387,8 +410,12 @@ internal sealed class AutomaticJumpAttackService
                     !box.gameObject.activeInHierarchy)
                     continue;
                 active = true;
-                ConsiderBox(player.transform, box.transform,
-                    ref boxTransform, ref closestDistance);
+                if (ConsiderBox(player.transform, box.transform,
+                        ref boxTransform, ref closestDistance))
+                {
+                    normalTarget = null;
+                    specialTarget = box;
+                }
             }
         }
 
@@ -452,14 +479,14 @@ internal sealed class AutomaticJumpAttackService
         previousBoxTargetId = 0;
     }
 
-    private static void ConsiderBox(
+    private static bool ConsiderBox(
         Transform player,
         Transform candidate,
         ref Transform selected,
         ref float closestDistance)
     {
         if (player == null || candidate == null)
-            return;
+            return false;
 
         float horizontalDistance;
         Camera camera = Camera.main;
@@ -478,10 +505,65 @@ internal sealed class AutomaticJumpAttackService
 
         if (horizontalDistance < BoxPassedViewportDistance ||
             horizontalDistance >= closestDistance)
-            return;
+            return false;
 
         closestDistance = horizontalDistance;
         selected = candidate;
+        return true;
+    }
+
+    private Transform BoxTargetTransform() =>
+        boxTargetNormal != null ? boxTargetNormal.transform
+        : boxTargetSpecial != null ? boxTargetSpecial.transform
+        : null;
+
+    // Box height minus player height, in viewport units (positive = above).
+    private float BoxVerticalGap(PlayerMovement player)
+    {
+        Transform box = BoxTargetTransform();
+        Camera camera = Camera.main;
+        if (box == null || camera == null) return float.NaN;
+        return camera.WorldToViewportPoint(box.position).y -
+               camera.WorldToViewportPoint(player.transform.position).y;
+    }
+
+    private void LogBoxAlignment(PlayerMovement player, float now)
+    {
+        if (boxJumpStartedAt < 0f || boxAlignmentLogged ||
+            float.IsNaN(untrackedBoxHorizontalDistance) ||
+            untrackedBoxHorizontalDistance > 0f)
+            return;
+        boxAlignmentLogged = true;
+        AdventurerLog.MovementDebug(
+            $"Untracked Random Box alignment: {now - boxJumpStartedAt:0.###}s after the jump; " +
+            $"verticalGap={BoxVerticalGap(player):0.###} viewport; " +
+            $"isJumping={player.isJumping}; jumpHeld={boxJumpHeld}.");
+    }
+
+    private string BoxOutcome()
+    {
+        try
+        {
+            if (boxTargetNormal != null) return boxTargetNormal.isHitted ? "hit" : "missed";
+            if (boxTargetSpecial != null) return boxTargetSpecial.isHitted ? "hit" : "missed";
+        }
+        catch
+        {
+            // A box destroyed during the check reads as unknown below.
+        }
+        // Gone without ever being seen hit: it left the screen behind the
+        // player, or was hit and destroyed between two scans (rare).
+        return boxTargetNormal is null && boxTargetSpecial is null
+            ? "unknown"
+            : "missed (destroyed)";
+    }
+
+    private void ClearBoxDiagnostics()
+    {
+        boxTargetNormal = null;
+        boxTargetSpecial = null;
+        boxJumpStartedAt = -1f;
+        boxAlignmentLogged = false;
     }
 
     private static bool IsCentralGameplayState()
@@ -504,5 +586,6 @@ internal sealed class AutomaticJumpAttackService
         boxJumpAttempted = false;
         ResetBoxGroundObservation();
         boxTargetLogged = false;
+        ClearBoxDiagnostics();
     }
 }
