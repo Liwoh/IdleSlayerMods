@@ -27,8 +27,16 @@ internal sealed class AutomaticJumpAttackService
     // ascent time before horizontal alignment. Keep this deliberately short:
     // the native held jump rises quickly, while Boost/Rage can otherwise make
     // a velocity-derived lead much too large.
-    private const float BoxJumpLeadTimeSeconds = 0.055f;
-    private const float MaximumBoxJumpViewportLead = 0.06f;
+    // Early in an adventure (no Ascension upgrade keeping boxes aligned over
+    // the player), a box hangs still and the player runs under it, so the
+    // jump must start a rise time ahead. That time is learned per session:
+    // a miss while still rising means the jump was late, a miss while
+    // falling means it was early.
+    private const float InitialBoxJumpLeadTimeSeconds = 0.2f;
+    private const float MinimumBoxJumpLeadTimeSeconds = 0.05f;
+    private const float MaximumBoxJumpLeadTimeSeconds = 0.5f;
+    private const float BoxJumpLeadTimeStepSeconds = 0.04f;
+    private const float MaximumBoxJumpViewportLead = 0.3f;
     private const float BoxJumpHoldSeconds = 0.25f;
     private const float BoxPassedViewportDistance = -0.03f;
     private const float BoxGroundStableSeconds = 0.04f;
@@ -62,6 +70,9 @@ internal sealed class AutomaticJumpAttackService
     private SpecialRandomBox boxTargetSpecial;
     private float boxJumpStartedAt = -1f;
     private bool boxAlignmentLogged;
+    private bool boxRisingAtAlignment;
+    private float previousJumpPlayerY = float.NaN;
+    private float boxJumpLeadTimeSeconds = InitialBoxJumpLeadTimeSeconds;
 
     /// <summary>
     /// Movement abilities must wait for the entire lifetime of any active
@@ -155,10 +166,12 @@ internal sealed class AutomaticJumpAttackService
             else if (!untrackedBoxActive && boxTargetLogged)
             {
                 boxTargetLogged = false;
+                string outcome = BoxOutcome();
                 AdventurerLog.MovementDebug(
-                    $"Untracked Random Box cleared; result={BoxOutcome()}; " +
+                    $"Untracked Random Box cleared; result={outcome}; " +
                     $"jumped={boxJumpAttempted}; normal jumping and movement " +
                     "abilities resumed.");
+                AdaptBoxJumpLead(outcome);
                 ClearBoxDiagnostics();
             }
         }
@@ -197,6 +210,7 @@ internal sealed class AutomaticJumpAttackService
                     $"speed={player.currentSpeed:0.##}/{player.speed:0.##}; " +
                     $"triggerLead={currentBoxJumpLead:0.###}; " +
                     $"closingSpeed={estimatedBoxClosingSpeed:0.###} viewport/s; " +
+                    $"leadTime={boxJumpLeadTimeSeconds:0.###}s; " +
                     $"hold={holdSeconds:0.###}s.");
             }
             return;
@@ -462,7 +476,7 @@ internal sealed class AutomaticJumpAttackService
 
             currentBoxJumpLead = Mathf.Clamp(
                 Math.Max(BoxJumpViewportLead,
-                    estimatedBoxClosingSpeed * BoxJumpLeadTimeSeconds),
+                    estimatedBoxClosingSpeed * boxJumpLeadTimeSeconds),
                 BoxJumpViewportLead,
                 MaximumBoxJumpViewportLead);
         }
@@ -530,14 +544,20 @@ internal sealed class AutomaticJumpAttackService
 
     private void LogBoxAlignment(PlayerMovement player, float now)
     {
-        if (boxJumpStartedAt < 0f || boxAlignmentLogged ||
+        if (boxJumpStartedAt < 0f) return;
+        float playerY = player.transform.position.y;
+        float previousY = previousJumpPlayerY;
+        previousJumpPlayerY = playerY;
+        if (boxAlignmentLogged ||
             float.IsNaN(untrackedBoxHorizontalDistance) ||
             untrackedBoxHorizontalDistance > 0f)
             return;
         boxAlignmentLogged = true;
+        boxRisingAtAlignment = !float.IsNaN(previousY) && playerY > previousY;
         AdventurerLog.MovementDebug(
             $"Untracked Random Box alignment: {now - boxJumpStartedAt:0.###}s after the jump; " +
             $"verticalGap={BoxVerticalGap(player):0.###} viewport; " +
+            $"rising={boxRisingAtAlignment}; " +
             $"isJumping={player.isJumping}; jumpHeld={boxJumpHeld}; " +
             $"speed={player.currentSpeed:0.##}/{player.speed:0.##}.");
     }
@@ -560,12 +580,32 @@ internal sealed class AutomaticJumpAttackService
             : "missed (destroyed)";
     }
 
+    private void AdaptBoxJumpLead(string outcome)
+    {
+        if (boxJumpStartedAt < 0f || !boxAlignmentLogged ||
+            !outcome.StartsWith("missed", StringComparison.Ordinal))
+            return;
+        float before = boxJumpLeadTimeSeconds;
+        boxJumpLeadTimeSeconds = Mathf.Clamp(
+            boxJumpLeadTimeSeconds + (boxRisingAtAlignment
+                ? BoxJumpLeadTimeStepSeconds
+                : -BoxJumpLeadTimeStepSeconds),
+            MinimumBoxJumpLeadTimeSeconds,
+            MaximumBoxJumpLeadTimeSeconds);
+        AdventurerLog.MovementDebug(
+            $"Untracked Random Box lead time adjusted: {before:0.###}s -> " +
+            $"{boxJumpLeadTimeSeconds:0.###}s (jump was " +
+            $"{(boxRisingAtAlignment ? "late" : "early")}).");
+    }
+
     private void ClearBoxDiagnostics()
     {
         boxTargetNormal = null;
         boxTargetSpecial = null;
         boxJumpStartedAt = -1f;
         boxAlignmentLogged = false;
+        boxRisingAtAlignment = false;
+        previousJumpPlayerY = float.NaN;
     }
 
     private static bool IsCentralGameplayState()
