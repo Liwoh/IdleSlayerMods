@@ -194,6 +194,7 @@ internal sealed class AutomaticJumpAttackService
                     $"Untracked Random Box jump committed; " +
                     $"horizontalLead={untrackedBoxHorizontalDistance:0.###} viewport; " +
                     $"verticalGap={BoxVerticalGap(player):0.###} viewport; " +
+                    $"speed={player.currentSpeed:0.##}/{player.speed:0.##}; " +
                     $"triggerLead={currentBoxJumpLead:0.###}; " +
                     $"closingSpeed={estimatedBoxClosingSpeed:0.###} viewport/s; " +
                     $"hold={holdSeconds:0.###}s.");
@@ -537,7 +538,8 @@ internal sealed class AutomaticJumpAttackService
         AdventurerLog.MovementDebug(
             $"Untracked Random Box alignment: {now - boxJumpStartedAt:0.###}s after the jump; " +
             $"verticalGap={BoxVerticalGap(player):0.###} viewport; " +
-            $"isJumping={player.isJumping}; jumpHeld={boxJumpHeld}.");
+            $"isJumping={player.isJumping}; jumpHeld={boxJumpHeld}; " +
+            $"speed={player.currentSpeed:0.##}/{player.speed:0.##}.");
     }
 
     private string BoxOutcome()
