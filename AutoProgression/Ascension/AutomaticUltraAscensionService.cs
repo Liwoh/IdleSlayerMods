@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using AutoProgression.Diagnostics;
 using Il2Cpp;
@@ -7,11 +8,17 @@ namespace AutoProgression.Ascension;
 
 internal sealed class AutomaticUltraAscensionService
 {
-    private const double RequiredAstralKeys = 24d;
+    // The confirm callback is a compiler-generated lambda whose number changes
+    // with game updates (b__42_0, b__50_0, b__58_0...). The popup's first
+    // lambda has always been the confirmation.
     private static readonly MethodInfo ConfirmUltraAscensionMethod =
-        typeof(AscensionManager).GetMethod(
-        "_UltraAscendPopup_b__50_0",
-        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        typeof(AscensionManager)
+            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .Where(method => method.GetParameters().Length == 0 &&
+                             method.Name.StartsWith("_UltraAscendPopup_b__", StringComparison.Ordinal) &&
+                             method.Name.EndsWith("_0", StringComparison.Ordinal))
+            .OrderBy(method => method.Name, StringComparer.Ordinal)
+            .FirstOrDefault();
 
     private float nextCheckTime;
     private bool startedThisSession;
@@ -42,11 +49,13 @@ internal sealed class AutomaticUltraAscensionService
             if (!ultraAscension.IsActive()) return false;
 
             double astralKeys = manager.GetAstralKeys();
-            ProgressionLog.Debug(
-                $"Automatic Ultra Ascension status: RequirementsMet=True, " +
-                $"AstralKeys={astralKeys:0.##}, Required={RequiredAstralKeys:0}.");
+            int requiredAstralKeys = Math.Max(0,
+                Plugin.Config.UltraAscensionMinimumAstralKeys.Value);
+            ProgressionLog.User(
+                $"Automatic Ultra Ascension status: AstralKeys={astralKeys:0.##}, " +
+                $"Required={requiredAstralKeys}, Confirm={ConfirmUltraAscensionMethod.Name}.");
             if (double.IsNaN(astralKeys) || double.IsInfinity(astralKeys) ||
-                astralKeys < RequiredAstralKeys)
+                astralKeys < requiredAstralKeys)
                 return false;
 
             // This is the native callback bound to the confirmation action in

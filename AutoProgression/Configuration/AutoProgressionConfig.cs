@@ -19,6 +19,7 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
     internal MelonPreferences_Entry<string> ToggleKey;
     internal MelonPreferences_Entry<bool> EnableAutomaticAscension;
     internal MelonPreferences_Entry<bool> EnableAutomaticUltraAscension;
+    internal MelonPreferences_Entry<int> UltraAscensionMinimumAstralKeys;
     internal MelonPreferences_Entry<float> AutomaticAscensionSoulBonusPercent;
     internal MelonPreferences_Entry<bool> BuyAscensionSkillsAfterAutomaticAscension;
     internal MelonPreferences_Entry<bool> EnablePaidBonuses;
@@ -90,7 +91,9 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
             "Automatically perform normal Ascension at the configured soul bonus threshold.", migrateLegacyValues);
         EnableAutomaticUltraAscension = BindMigrated(
             "Ascension", "Automatic Ultra Ascension Enabled", "Ascension - Automatic Ultra Ascension Enabled", false,
-            "WARNING: Ultra Ascension performs a major progression reset. Automatically Ultra Ascend only after the game's native Ultra Ascension requirements are active and the current Ascension upgrades grant at least 24 Astral Keys. The 24-key threshold is fixed.", migrateLegacyValues);
+            "WARNING: Ultra Ascension performs a major progression reset. Automatically Ultra Ascend only after the game's native Ultra Ascension requirements are active and the current Ascension upgrades grant at least Ultra Ascension Minimum Astral Keys.", migrateLegacyValues);
+        UltraAscensionMinimumAstralKeys = Bind("Ascension", "Ultra Ascension Minimum Astral Keys", 24,
+            "Automatic Ultra Ascension waits until the next Ultra Ascension would grant at least this many Astral Keys (the count shown in the Ascension tree).");
         AutomaticAscensionSoulBonusPercent = BindMigrated(
             "Ascension", "Soul Bonus Threshold Percent", "Ascension - Soul Bonus Threshold Percent", 50f,
             "Ascend when pending Slayer Points reach this percentage of lifetime Slayer Points.", migrateLegacyValues);
