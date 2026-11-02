@@ -32,7 +32,7 @@ internal sealed class AutomaticJumpAttackService
     // jump must start a rise time ahead. That time is learned per session:
     // a miss while still rising means the jump was late, a miss while
     // falling means it was early.
-    private const float InitialBoxJumpLeadTimeSeconds = 0.2f;
+    private const float InitialBoxJumpLeadTimeSeconds = 0.25f;
     private const float MinimumBoxJumpLeadTimeSeconds = 0.05f;
     private const float MaximumBoxJumpLeadTimeSeconds = 0.5f;
     private const float BoxJumpLeadTimeStepSeconds = 0.04f;
