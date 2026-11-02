@@ -77,6 +77,24 @@ internal sealed class ResourceSnapshotService
         }
     }
 
+    // UltraSlayerPoints.points is only the unspent part; the rest sits in the
+    // Stones of Time and in the active Upgrades of Time.
+    private static double UspInStonesOfTime()
+    {
+        double total = 0d;
+        foreach (StoneOfTime stone in UnityEngine.Resources.FindObjectsOfTypeAll<StoneOfTime>())
+            if (stone != null) total += stone.currentUSP;
+        return total;
+    }
+
+    private static double UspInUpgradesOfTime()
+    {
+        double total = 0d;
+        foreach (UpgradeOfTime upgrade in UnityEngine.Resources.FindObjectsOfTypeAll<UpgradeOfTime>())
+            if (upgrade != null && upgrade.active) total += upgrade.uspCost;
+        return total;
+    }
+
     private static string Describe(PlayerInventory inventory)
     {
         var parts = new List<string>
@@ -85,6 +103,9 @@ internal sealed class ResourceSnapshotService
             $"pendingSP={Format(SlayerPoints.pre)}",
             $"USP={Format(UltraSlayerPoints.points)}",
             $"pendingUSP={Format(UltraSlayerPoints.pre)}",
+            $"lifetimeUSP={Format(UltraSlayerPoints.lifetime)}",
+            $"uspInStones={Format(UspInStonesOfTime())}",
+            $"uspInUpgrades={Format(UspInUpgradesOfTime())}",
             $"jewels={Format(inventory.jewelsOfSoul)}",
             $"divinity={Format(inventory.divinityPoints)}",
             $"silverBoxes={Format(inventory.silverRandomBoxesAmount)}"
