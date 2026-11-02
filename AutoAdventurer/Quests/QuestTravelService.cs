@@ -40,6 +40,7 @@ internal sealed class QuestTravelService
     private string lockedTargetMapId = string.Empty;
     private string lockedRequiredCharacterId = string.Empty;
     private bool lockedQuestIsDaily;
+    private bool lockedQuestHoldsMap;
     private bool lockedQuestSuppressesRage;
     private bool lockedQuestNeedsWindDash;
     private bool materialQuestActive;
@@ -508,6 +509,7 @@ internal sealed class QuestTravelService
                         $"previousMap={lockedTargetMapId}; newMap={tracked.MapId}; " +
                         "reason=previous map no longer has a valid unlocked target.");
                     lockedTargetMapId = tracked.MapId;
+                    if (lockedQuestHoldsMap) FarmMap.HoldForStoryQuest(lockedTargetMapId);
                 }
                 QuestTargetSelection preferred =
                     FindPreferredOverBackgroundQuest(locked, quests);
@@ -540,6 +542,8 @@ internal sealed class QuestTravelService
         lockedTargetMapId = selection.MapId;
         lockedRequiredCharacterId = selection.RequiredCharacterId;
         lockedQuestIsDaily = IsDailyQuest(selection.Quest);
+        lockedQuestHoldsMap = QuestTargetResolver.PriorityTier(selection.Quest) == 2;
+        FarmMap.HoldForStoryQuest(lockedQuestHoldsMap ? lockedTargetMapId : string.Empty);
         lockedQuestSuppressesRage = selection.SuppressesAutomaticRage;
         lockedQuestNeedsWindDash =
             QuestCompat.Kind(selection.Quest) == LegacyQuestType.WindDashKills;
@@ -1188,6 +1192,8 @@ internal sealed class QuestTravelService
         lockedTargetMapId = string.Empty;
         lockedRequiredCharacterId = string.Empty;
         lockedQuestIsDaily = false;
+        lockedQuestHoldsMap = false;
+        FarmMap.HoldForStoryQuest(string.Empty);
         lockedQuestSuppressesRage = false;
         lockedQuestNeedsWindDash = false;
         lockedQuestNeedsCharacterSwitch = false;
