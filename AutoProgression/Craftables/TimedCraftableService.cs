@@ -1,5 +1,6 @@
 using AutoProgression.Diagnostics;
 using AutoProgression.Materials;
+using AutoProgression.Quests;
 using Il2Cpp;
 using MelonLoader;
 using UnityEngine;
@@ -15,6 +16,8 @@ internal sealed class TimedCraftableService
     private readonly Entry[] entries;
     private float nextCheckTime;
     private float nextSummaryTime;
+    private bool storyKillQuestSeen;
+    private bool giantTargetSeen;
 
     internal TimedCraftableService()
     {
@@ -27,7 +30,12 @@ internal sealed class TimedCraftableService
                 "craftable_item_deathwave_scepter",
                 "Deathwave Scepter",
                 () => Plugin.Config.EnableDeathwaveScepter,
-                HasDeathwaveFeatherReserve)
+                HasDeathwaveFeatherReserve),
+            new Entry(
+                "craftable_item_shards_necklace",
+                "Shards Necklace",
+                () => Plugin.Config.EnableShardsNecklaceGiantStoryQuests,
+                () => StoryKillQuestBridge.GiantTarget)
         };
     }
 
@@ -36,6 +44,7 @@ internal sealed class TimedCraftableService
         FlushSummary(now);
         if (now < nextCheckTime) return false;
         nextCheckTime = now + CheckIntervalSeconds;
+        LogStoryKillQuestChange();
         float refillAtMinutes = Mathf.Max(0f, Plugin.Config.TimedCraftablesTargetMinutes.Value * 0.5f);
         float targetMinutes = Mathf.Max(
             refillAtMinutes,
@@ -45,7 +54,8 @@ internal sealed class TimedCraftableService
 
         foreach (Entry entry in entries)
         {
-            if (!entry.Enabled().Value)
+            if (!entry.Enabled().Value ||
+                (Plugin.Config.StoryKillQuestCraftablesOnly.Value && !StoryKillQuestBridge.Active))
             {
                 entry.Refilling = false;
                 continue;
@@ -121,8 +131,35 @@ internal sealed class TimedCraftableService
             if (item != null && item.name == internalName) return item;
         }
 
+        // Fallback for items whose exact internal name is not known.
+        string wanted = Normalize(internalName.Replace("craftable_item_", string.Empty));
+        foreach (TemporaryCraftableItem item in Resources.FindObjectsOfTypeAll<TemporaryCraftableItem>())
+        {
+            if (item != null && Normalize(item.name).Contains(wanted)) return item;
+        }
+
         return null;
     }
+
+    private void LogStoryKillQuestChange()
+    {
+        if (!Plugin.Config.StoryKillQuestCraftablesOnly.Value) return;
+        bool story = StoryKillQuestBridge.Active;
+        bool giant = StoryKillQuestBridge.GiantTarget;
+        if (story == storyKillQuestSeen && giant == giantTargetSeen) return;
+        storyKillQuestSeen = story;
+        giantTargetSeen = giant;
+        ProgressionLog.Debug(
+            story
+                ? $"Story kill quest in progress: timed craftables allowed; Giant target={giant}."
+                : "No story kill quest in progress: timed craftables paused.",
+            "Craftables");
+    }
+
+    private static string Normalize(string value) =>
+        string.IsNullOrEmpty(value)
+            ? string.Empty
+            : value.Replace("_", string.Empty).Replace(" ", string.Empty).ToLowerInvariant();
 
     private static bool HasDeathwaveFeatherReserve()
     {

@@ -56,6 +56,8 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
     internal MelonPreferences_Entry<bool> EnableDeathwaveScepter;
     internal MelonPreferences_Entry<int> DeathwaveScepterFeatherReserveAmount;
     internal MelonPreferences_Entry<bool> EnableShardsNecklaceScrapOverflow;
+    internal MelonPreferences_Entry<bool> StoryKillQuestCraftablesOnly;
+    internal MelonPreferences_Entry<bool> EnableShardsNecklaceGiantStoryQuests;
     internal MelonPreferences_Entry<float> ShardsNecklaceScrapThresholdPercent;
     internal MelonPreferences_Entry<bool> EnableDragonScaleOverflowCraftables;
     internal MelonPreferences_Entry<float> DragonScaleOverflowThresholdPercent;
@@ -211,6 +213,10 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
         EnableShardsNecklaceScrapOverflow = BindMigrated(
             "Craftables", "Shards Necklace Scrap Overflow Enabled", "Craftables - Shards Necklace Scrap Overflow Enabled", true,
             "Craft Shards Necklaces when Scrap reaches the configured capacity percentage. WARNING: This can spend Jewels of Soul on missing materials when the global material-purchase option is enabled.", migrateLegacyValues);
+        StoryKillQuestCraftablesOnly = Bind("Craftables", "Story Kill Quests Only", false,
+            "Craft the timed items (Whetstone, staffs, Deathwave Scepter, Shards Necklace for Giants) only while AutoAdventurer is doing a story kill quest; Daily and Weekly quests never trigger them. Requires AutoAdventurer.");
+        EnableShardsNecklaceGiantStoryQuests = Bind("Craftables", "Shards Necklace Giant Story Quests Enabled", false,
+            "Keep the Shards Necklace temporary effect active while AutoAdventurer is doing a story quest whose target is a Giant, whatever the Scrap amount. Follows Timed Items Target Minutes. Requires AutoAdventurer.");
         ShardsNecklaceScrapThresholdPercent = BindMigrated(
             "Craftables", "Shards Necklace Scrap Threshold Percent", "Craftables - Shards Necklace Scrap Threshold Percent", 97f,
             "Craft Shards Necklaces at or above this Scrap percentage and stop below it. This item does not use the timed-item duration limit.", migrateLegacyValues);

@@ -85,7 +85,7 @@ internal sealed class QuestTargetResolver
 
     // Daily and Weekly quests are recycled components; everything else is a
     // story or event quest from the normal quest catalogue.
-    private static bool IsStoryQuest(Quest quest)
+    internal static bool IsStoryQuest(Quest quest)
     {
         string runtimeType = quest?.GetIl2CppType()?.Name ?? string.Empty;
         return runtimeType != nameof(DailyQuest) && runtimeType != nameof(WeeklyQuest);

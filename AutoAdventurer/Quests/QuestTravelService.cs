@@ -556,6 +556,7 @@ internal sealed class QuestTravelService
         lockedQuestIsDaily = IsDailyQuest(selection.Quest);
         lockedQuestHoldsMap = QuestTargetResolver.PriorityTier(selection.Quest) == 2;
         FarmMap.HoldForStoryQuest(lockedQuestHoldsMap ? lockedTargetMapId : string.Empty);
+        StoryKillQuest.Set(selection);
         lockedQuestSuppressesRage = selection.SuppressesAutomaticRage;
         lockedQuestNeedsWindDash =
             QuestCompat.Kind(selection.Quest) == LegacyQuestType.WindDashKills;
@@ -1253,6 +1254,7 @@ internal sealed class QuestTravelService
         lockedQuestIsDaily = false;
         lockedQuestHoldsMap = false;
         FarmMap.HoldForStoryQuest(string.Empty);
+        StoryKillQuest.Clear();
         lockedQuestSuppressesRage = false;
         lockedQuestNeedsWindDash = false;
         lockedQuestNeedsCharacterSwitch = false;
