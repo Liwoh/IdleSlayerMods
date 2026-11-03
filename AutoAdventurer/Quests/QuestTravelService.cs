@@ -18,6 +18,8 @@ internal sealed class QuestTravelService
     private const float EventTimerGraceSeconds = 1f;
     private const float EventEndConfirmationSeconds = 2f;
     private const float StalledProgressCheckSeconds = 300f;
+    private const float AbnormalRetryBaseSeconds = 1800f;
+    private const float AbnormalRetryMaximumSeconds = 7200f;
 
     private readonly QuestDiscoveryService discovery = new();
     private readonly QuestTargetResolver resolver = new();
@@ -67,6 +69,12 @@ internal sealed class QuestTravelService
     private readonly HashSet<int> countedNormalQuestInstances = new();
     private readonly Dictionary<string, string> abnormalQuestReasons =
         new(StringComparer.Ordinal);
+    private readonly Dictionary<string, float> abnormalQuestRetryAt =
+        new(StringComparer.Ordinal);
+    // Consecutive failures per quest, kept across retries so a quest that
+    // still cannot progress waits longer each time.
+    private readonly Dictionary<string, int> abnormalQuestStrikes =
+        new(StringComparer.Ordinal);
     private float nextEventCheckTime;
     private bool activeRandomEvent;
     private string activeRandomEventName = string.Empty;
@@ -76,6 +84,7 @@ internal sealed class QuestTravelService
     private bool activeRandomBox;
     private string activeRandomBoxDescription = string.Empty;
     private double observedUltraAscensions = -1d;
+    private double observedAscensions = -1d;
 
     private bool HasMapActivityBlocker =>
         activeRandomEvent || activeRandomBox;
@@ -113,6 +122,8 @@ internal sealed class QuestTravelService
                 nextScanTime = now;
             }
             ObserveUltraAscensionReset();
+            ObserveAscensionRetry();
+            ReleaseExpiredAbnormalQuests(now);
             UpdateRandomEventState(now);
             if (HasMapActivityBlocker)
             {
@@ -476,6 +487,7 @@ internal sealed class QuestTravelService
                     }
                     else
                     {
+                        abnormalQuestStrikes.Remove(lockedQuestKey);
                         AdventurerLog.QuestDebug(
                             $"Quest watchdog healthy: quest={lockedQuestDisplayName} [{lockedQuestId}]; " +
                             $"progress={lockedQuestProgressBaseline:0.##}->{currentProgress:0.##}; next check in 5 minutes.");
@@ -596,10 +608,55 @@ internal sealed class QuestTravelService
 
         string description =
             $"quest={displayName} [{questId}]; reason={reason}";
+        abnormalQuestStrikes.TryGetValue(lockKey, out int strikes);
+        abnormalQuestStrikes[lockKey] = ++strikes;
+        float delay = Math.Min(AbnormalRetryMaximumSeconds,
+            AbnormalRetryBaseSeconds * (float)Math.Pow(2d, strikes - 1));
         abnormalQuestReasons.Add(lockKey, description);
+        abnormalQuestRetryAt[lockKey] = Time.unscaledTime + delay;
         AdventurerLog.QuestDebug(
             $"Quest added to the P-session abnormal list: {description}; " +
-            $"excludedCount={abnormalQuestReasons.Count}. It will remain excluded until P is disabled.");
+            $"excludedCount={abnormalQuestReasons.Count}; failures={strikes}. " +
+            $"It will be retried in {delay / 60f:0} minutes or after the next Ascension.");
+    }
+
+    private void ReleaseExpiredAbnormalQuests(float now)
+    {
+        if (abnormalQuestRetryAt.Count == 0) return;
+        List<string> expired = null;
+        foreach (var pair in abnormalQuestRetryAt)
+            if (now >= pair.Value) (expired ??= new List<string>()).Add(pair.Key);
+        if (expired == null) return;
+        foreach (string key in expired)
+        {
+            AdventurerLog.QuestDebug(
+                $"Quest removed from the abnormal list for a new attempt: {abnormalQuestReasons[key]}.");
+            abnormalQuestReasons.Remove(key);
+            abnormalQuestRetryAt.Remove(key);
+        }
+        nextScanTime = now;
+    }
+
+    // Enemy evolutions and unlocks change at each Ascension, so every quest
+    // set aside gets a new attempt.
+    private void ObserveAscensionRetry()
+    {
+        PlayerInventory inventory = PlayerInventory.instance;
+        if (inventory == null) return;
+        double current = Math.Max(0d, inventory.ascensions);
+        if (observedAscensions < 0d || current < observedAscensions)
+        {
+            observedAscensions = current;
+            return;
+        }
+        if (current == observedAscensions) return;
+        observedAscensions = current;
+        if (abnormalQuestReasons.Count == 0) return;
+        AdventurerLog.QuestDebug(
+            $"Ascension detected: {abnormalQuestReasons.Count} quest(s) from the abnormal list will be retried.");
+        abnormalQuestReasons.Clear();
+        abnormalQuestRetryAt.Clear();
+        nextScanTime = Time.unscaledTime;
     }
 
     private void RecordCompletedQuest(int instanceId, bool isDaily,
@@ -1153,6 +1210,8 @@ internal sealed class QuestTravelService
         discovery.Reset();
         soulFarming.Reset();
         abnormalQuestReasons.Clear();
+        abnormalQuestRetryAt.Clear();
+        abnormalQuestStrikes.Clear();
         countedDailyQuestInstances.Clear();
         countedNormalQuestInstances.Clear();
         lastQuestSnapshotAvailable = false;
@@ -1222,6 +1281,7 @@ internal sealed class QuestTravelService
         activeRandomBoxDescription = string.Empty;
         postRagePortalBlockedUntil = 0f;
         observedUltraAscensions = -1d;
+        observedAscensions = -1d;
         ClearQuestLock();
         ClearPendingTravel();
         discovery.Reset();
@@ -1236,6 +1296,8 @@ internal sealed class QuestTravelService
         countedDailyQuestInstances.Clear();
         countedNormalQuestInstances.Clear();
         abnormalQuestReasons.Clear();
+        abnormalQuestRetryAt.Clear();
+        abnormalQuestStrikes.Clear();
         Reset();
         FarmMap.Clear();
         AdventurerLog.QuestDebug(
@@ -1266,6 +1328,8 @@ internal sealed class QuestTravelService
                     $"P-session abnormal quest: {description}.");
         }
         abnormalQuestReasons.Clear();
+        abnormalQuestRetryAt.Clear();
+        abnormalQuestStrikes.Clear();
     }
 
     internal void PauseForSceneTransition()
