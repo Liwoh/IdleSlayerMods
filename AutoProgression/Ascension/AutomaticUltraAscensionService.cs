@@ -20,13 +20,15 @@ internal sealed class AutomaticUltraAscensionService
             .OrderBy(method => method.Name, StringComparer.Ordinal)
             .FirstOrDefault();
 
+    // Several Ultra Ascensions can happen in one game session; this only
+    // keeps the next check clear of the reset still in progress.
+    private const float PauseAfterStartSeconds = 600f;
     private float nextCheckTime;
-    private bool startedThisSession;
 
     internal bool Tick(float now)
     {
         if (!Plugin.Config.EnableAutomaticUltraAscension.Value ||
-            startedThisSession || now < nextCheckTime)
+            now < nextCheckTime)
             return false;
 
         nextCheckTime = now + GetCheckIntervalSeconds();
@@ -62,7 +64,7 @@ internal sealed class AutomaticUltraAscensionService
             // UltraAscendPopup. Ascend(true) is not the Ultra Ascension entry
             // point and only produces a transient cutscene without resetting.
             ConfirmUltraAscensionMethod.Invoke(manager, Array.Empty<object>());
-            startedThisSession = true;
+            nextCheckTime = now + Math.Max(PauseAfterStartSeconds, GetCheckIntervalSeconds());
             ProgressionLog.User(
                 $"Automatic Ultra Ascension started with " +
                 $"{astralKeys:0.##} Astral Keys available.");

@@ -18,6 +18,10 @@ public static class FarmMap
     private static string storyMapId = string.Empty;
     private static float storyMapReachedAt = -1f;
     private static string referenceMapId = string.Empty;
+    private static string mapBeforeLastChange = string.Empty;
+    private static float lastChangeAt = -1f;
+    private static double observedUltraAscensions = -1d;
+    private static float ultraAscensionSeenAt = -1f;
 
     internal static string MapId { get; private set; } = string.Empty;
     internal static bool Active => MapId.Length > 0;
@@ -63,8 +67,9 @@ public static class FarmMap
         {
             bool changed = !string.Equals(current, lastSeenMapId, StringComparison.Ordinal);
             bool byMod = string.Equals(current, modTravelTargetId, StringComparison.Ordinal);
-            if (!Active || (changed && !byMod)) SetMap(current);
+            if (!Active || (changed && !byMod && !JustUltraAscended())) SetMap(current);
         }
+        ObserveUltraAscension();
         lastSeenMapId = current;
         ObserveReferenceMap(current);
         return !string.Equals(before, MapId, StringComparison.Ordinal);
@@ -93,10 +98,41 @@ public static class FarmMap
     }
 
     private const float StoryMapDelaySeconds = 60f;
+    private const float UltraAscensionMoveSeconds = 15f;
+
+    // An Ultra Ascension sends the player back to the first dimension. That
+    // move is not the player's choice, so with Current the farm map stays
+    // where it was and the fallback travels back once the portal offers it.
+    // The move and the counter update may land a few frames apart, in either
+    // order, hence the window on both sides.
+    private static void ObserveUltraAscension()
+    {
+        PlayerInventory inventory = PlayerInventory.instance;
+        if (inventory == null) return;
+        double count = Math.Max(0d, inventory.ultraAscensions);
+        if (observedUltraAscensions < 0d || count <= observedUltraAscensions)
+        {
+            observedUltraAscensions = count;
+            return;
+        }
+        observedUltraAscensions = count;
+        ultraAscensionSeenAt = Time.unscaledTime;
+        if (lastChangeAt >= 0f && mapBeforeLastChange.Length > 0 &&
+            Time.unscaledTime - lastChangeAt <= UltraAscensionMoveSeconds)
+            SetMap(mapBeforeLastChange);
+        if (Active)
+            AdventurerLog.User($"Ultra Ascension detected: farm map kept on {MapId}.");
+    }
+
+    private static bool JustUltraAscended() =>
+        ultraAscensionSeenAt >= 0f &&
+        Time.unscaledTime - ultraAscensionSeenAt <= UltraAscensionMoveSeconds;
 
     private static void SetMap(string mapId)
     {
         if (string.Equals(mapId, MapId, StringComparison.Ordinal)) return;
+        mapBeforeLastChange = MapId;
+        lastChangeAt = Time.unscaledTime;
         MapId = mapId;
         AdventurerLog.User(Active ? $"Farm map: {MapId}." : "Farm map: off.");
     }
