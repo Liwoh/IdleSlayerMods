@@ -179,13 +179,15 @@ internal static class RandomBoxSpawnStockHidePatch
     }
 }
 
-// Safety net for any other path to a Silver Box spawn.
+// Safety net for any other path to a Silver Box spawn. Bonus Stages call it
+// with the flag set for their own boxes (2026-11-04: blocking those emptied
+// the stage), so only flagless calls, the ones drawn from the stock, stop.
 [HarmonyPatch(typeof(SilverRandomBoxManager), nameof(SilverRandomBoxManager.SpawnSilverRandomBox))]
 internal static class SilverRandomBoxSpawnPatch
 {
     private static bool Prefix(bool __1)
     {
-        if (!SilverBoxStockpileService.Blocking) return true;
+        if (!SilverBoxStockpileService.Blocking || __1) return true;
         SilverBoxStockpileService.BlockedSinceStockChange++;
         SilverBoxStockpileService.BlockedInWindow++;
         if (SilverBoxStockpileService.BlockedInWindow == 1)
