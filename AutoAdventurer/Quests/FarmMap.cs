@@ -46,6 +46,7 @@ public static class FarmMap
         lastSeenMapId = string.Empty;
         HoldForStoryQuest(string.Empty);
         SetMap(string.Empty);
+        Save();
     }
 
     // Returns true when the farm map just changed, so travel already planned
@@ -67,9 +68,19 @@ public static class FarmMap
         {
             bool changed = !string.Equals(current, lastSeenMapId, StringComparison.Ordinal);
             bool byMod = string.Equals(current, modTravelTargetId, StringComparison.Ordinal);
-            if (!Active || (changed && !byMod && !JustUltraAscended())) SetMap(current);
+            // The game may have been closed during a quest trip, so a new
+            // launch starts from the saved farm map, not from where it reopens.
+            string saved = (Plugin.Config.FarmMapSaved.Value ?? string.Empty).Trim();
+            if (!Active && saved.Length > 0)
+            {
+                SetMap(saved);
+                AdventurerLog.User($"Farm map restored from the previous launch: {MapId}.");
+            }
+            else if (!Active || (changed && !byMod && !JustUltraAscended()))
+                SetMap(current);
         }
         ObserveUltraAscension();
+        if (setting.Equals("Current", StringComparison.OrdinalIgnoreCase)) Save();
         lastSeenMapId = current;
         ObserveReferenceMap(current);
         return !string.Equals(before, MapId, StringComparison.Ordinal);
@@ -135,6 +146,12 @@ public static class FarmMap
         lastChangeAt = Time.unscaledTime;
         MapId = mapId;
         AdventurerLog.User(Active ? $"Farm map: {MapId}." : "Farm map: off.");
+    }
+
+    private static void Save()
+    {
+        if (!string.Equals(Plugin.Config.FarmMapSaved.Value, MapId, StringComparison.Ordinal))
+            Plugin.Config.FarmMapSaved.Value = MapId;
     }
 
     public static bool IsFarmMapActive => Active;

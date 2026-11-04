@@ -48,6 +48,7 @@ internal sealed class AutoAdventurerConfig(string configName) : BaseConfig(confi
     internal MelonPreferences_Entry<string> MaterialQuestMap;
     internal MelonPreferences_Entry<bool> PrioritizeStoryQuests;
     internal MelonPreferences_Entry<string> FarmMap;
+    internal MelonPreferences_Entry<string> FarmMapSaved;
     internal MelonPreferences_Entry<bool> WindDashKillQuests;
 
     internal double MinimumDimensionStayMinutesValue =>
@@ -224,6 +225,8 @@ internal sealed class AutoAdventurerConfig(string configName) : BaseConfig(confi
             "Where to go when no kill quest can be done but a Get Materials quest is active. Auto = the best soul score among dimensions where an enemy's current stage drops a material (listed in the log). Off = ignore material quests. Or an internal map name.");
         FarmMap = Bind(QuestAutomationSection, "Farm Map", "Off",
             "Stay on one dimension to farm it. Off = normal behaviour. Current = the dimension you are in when Quest Automation is enabled; travelling yourself to another one changes it. Or an internal map name. Daily and Weekly kill quests are only done when they can be done there, and the fallback always returns there. Story quests keep their priority and still travel. AutoProgression can reroll the other Daily quests (Reroll Dailies Outside Farm Map).");
+        FarmMapSaved = Bind(QuestAutomationSection, "Farm Map Saved", "",
+            "Internal state of Farm Map = Current: the farm map kept across game launches, so closing the game during a story quest trip does not move it. Leave it as is.");
         WindDashKillQuests = Bind(QuestAutomationSection, "Wind Dash Kill Quests", true,
             "Do Daily and Weekly Wind Dash kill quests (switching to Wind Dash for them). When false they are never selected, and AutoProgression's Reroll Quests Outside Farm Map rerolls them. Story Wind Dash quests are always done.");
 
