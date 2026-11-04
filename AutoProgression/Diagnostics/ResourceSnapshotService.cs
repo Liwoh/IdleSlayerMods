@@ -111,6 +111,9 @@ internal sealed class ResourceSnapshotService
             $"divinity={Format(inventory.divinityPoints)}",
             $"silverBoxes={Format(inventory.silverRandomBoxesAmount)}"
         };
+        SilverRandomBoxManager silverBoxManager = SilverRandomBoxManager.instance;
+        if (silverBoxManager != null)
+            parts.Add($"silverBoxesStored={Format(silverBoxManager.silverBoxesLeft)}");
 
         Drops special = Drops.list;
         if (special != null)

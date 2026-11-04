@@ -36,6 +36,8 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
     internal MelonPreferences_Entry<string> CrawlerEyePurchaseKey;
     internal MelonPreferences_Entry<int> CrawlerEyesPerPress;
     internal MelonPreferences_Entry<bool> EnableAutomaticSilverBoxClaim;
+    internal MelonPreferences_Entry<bool> StockpileSilverBoxes;
+    internal MelonPreferences_Entry<bool> ReleaseStockpileForSilverBoxQuests;
     internal MelonPreferences_Entry<bool> EnableQuestAutomation;
     internal MelonPreferences_Entry<bool> AutoClaimCompletedQuests;
     internal MelonPreferences_Entry<bool> RegenerateDailyQuests;
@@ -146,6 +148,10 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
         EnableAutomaticSilverBoxClaim = BindMigrated(
             "Silver Boxes", "Auto Claim Reward", "Silver Boxes - Auto Claim Reward", true,
             "Automatically claim an available Silver Box reward after entering the game. This feature is independent from the main automation toggle.", migrateLegacyValues);
+        StockpileSilverBoxes = Bind("Silver Boxes", "Stockpile", false,
+            "Keep activated Silver Boxes stored instead of spawning them, so the stored count keeps growing with each claim (for the unspent Silver Box achievements). Set it back to false and they spawn again. Independent from the main automation toggle.");
+        ReleaseStockpileForSilverBoxQuests = Bind("Silver Boxes", "Release Stockpile For Silver Box Quests", true,
+            "While Stockpile is on, let Silver Boxes spawn as long as a story or event quest asks to hit Silver Boxes, then block them again once it is done.");
         EnableQuestAutomation = BindMigrated(
             "Quests", "Enabled", "Quests - Enabled", true,
             "Master switch for all quest automation. When disabled, every other option in this section is inactive.", migrateLegacyValues);

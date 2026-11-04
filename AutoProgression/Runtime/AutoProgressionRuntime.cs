@@ -42,6 +42,7 @@ public sealed class AutoProgressionRuntime : MonoBehaviour
     private readonly EquipmentPurchaseService equipmentPurchases = new();
     private readonly ArmoryBoxOpeningService armoryBoxes = new();
     private readonly SilverBoxClaimService silverBoxes = new();
+    private readonly SilverBoxStockpileService silverBoxStockpile = new();
     private readonly CrawlerEyePurchaseService crawlerEyes = new();
     private readonly ResourceSnapshotService resourceSnapshots = new();
     private bool autoProgressionEnabled;
@@ -64,6 +65,7 @@ public sealed class AutoProgressionRuntime : MonoBehaviour
         armoryBoxes.Tick();
         crawlerEyes.Tick(Time.unscaledTime);
         silverBoxes.Tick(Time.unscaledTime);
+        silverBoxStockpile.Tick(Time.unscaledTime);
         resourceSnapshots.Tick(Time.unscaledTime);
 
         RefreshToggleKey();
@@ -326,6 +328,7 @@ public sealed class AutoProgressionRuntime : MonoBehaviour
     {
         armoryBoxes.Reset();
         silverBoxes.Reset();
+        silverBoxStockpile.Reset();
         ResetRuntimeState();
     }
 }
