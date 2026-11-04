@@ -38,6 +38,7 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
     internal MelonPreferences_Entry<bool> EnableAutomaticSilverBoxClaim;
     internal MelonPreferences_Entry<bool> StockpileSilverBoxes;
     internal MelonPreferences_Entry<bool> ReleaseStockpileForSilverBoxQuests;
+    internal MelonPreferences_Entry<int> RestoreSilverBoxStock;
     internal MelonPreferences_Entry<bool> EnableQuestAutomation;
     internal MelonPreferences_Entry<bool> AutoClaimCompletedQuests;
     internal MelonPreferences_Entry<bool> RegenerateDailyQuests;
@@ -152,6 +153,8 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
             "Keep activated Silver Boxes stored instead of spawning them, so the stored count keeps growing with each claim (for the unspent Silver Box achievements). Set it back to false and they spawn again. Independent from the main automation toggle.");
         ReleaseStockpileForSilverBoxQuests = Bind("Silver Boxes", "Release Stockpile For Silver Box Quests", true,
             "While Stockpile is on, let Silver Boxes spawn as long as a story or event quest asks to hit Silver Boxes, then block them again once it is done.");
+        RestoreSilverBoxStock = Bind("Silver Boxes", "Restore Stock", 0,
+            "One-time repair: add this many Silver Boxes back to the stored count once the game is loaded, then reset to 0. Only meant to give back boxes lost to a Stockpile bug.");
         EnableQuestAutomation = BindMigrated(
             "Quests", "Enabled", "Quests - Enabled", true,
             "Master switch for all quest automation. When disabled, every other option in this section is inactive.", migrateLegacyValues);

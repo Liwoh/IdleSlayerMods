@@ -46,6 +46,13 @@ internal sealed class SilverBoxStockpileService
         }
 
         Blocking = stockpile && releaseQuest.Length == 0;
+        int restore = Plugin.Config.RestoreSilverBoxStock.Value;
+        if (restore > 0)
+        {
+            manager.silverBoxesLeft += restore;
+            Plugin.Config.RestoreSilverBoxStock.Value = 0;
+            ProgressionLog.User($"Silver Box stock restored: +{restore}, stored={manager.silverBoxesLeft:0}.");
+        }
         double stock = manager.silverBoxesLeft;
         LogState(stockpile, stock);
         ProbeStock(stock);
@@ -137,11 +144,16 @@ internal sealed class SilverBoxStockpileService
 [HarmonyPatch(typeof(MapController), nameof(MapController.SpawnRandomBox), typeof(Vector2))]
 internal static class RandomBoxSpawnStockHidePatch
 {
+    // The regular spawn can call itself: only the outermost call hides and
+    // restores the stock (a nested reset lost 45 boxes on 2026-11-04).
+    private static int depth;
     private static double hiddenStock = -1d;
     private static bool logged;
 
     private static void Prefix()
     {
+        depth++;
+        if (depth > 1) return;
         hiddenStock = -1d;
         if (!SilverBoxStockpileService.Blocking) return;
         SilverRandomBoxManager manager = SilverRandomBoxManager.instance;
@@ -150,9 +162,11 @@ internal static class RandomBoxSpawnStockHidePatch
         manager.silverBoxesLeft = 0d;
     }
 
-    private static void Finalizer()
+    // Postfix rather than Finalizer: the Il2Cpp detour may not run finalizers.
+    private static void Postfix()
     {
-        if (hiddenStock < 0d) return;
+        depth = System.Math.Max(0, depth - 1);
+        if (depth > 0 || hiddenStock < 0d) return;
         SilverRandomBoxManager manager = SilverRandomBoxManager.instance;
         if (manager != null)
         {
