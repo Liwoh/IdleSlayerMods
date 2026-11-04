@@ -22,6 +22,7 @@ public static class FarmMap
     private static float lastChangeAt = -1f;
     private static double observedUltraAscensions = -1d;
     private static float ultraAscensionSeenAt = -1f;
+    private static bool keepSavedOnNextClear = true;
 
     internal static string MapId { get; private set; } = string.Empty;
     internal static bool Active => MapId.Length > 0;
@@ -39,14 +40,18 @@ public static class FarmMap
     }
 
     // Called when Quest Automation (P) is enabled or disabled: with Current,
-    // the next Observe() takes the dimension the player is in.
+    // the next Observe() takes the dimension the player is in, except after
+    // the first toggle of a launch, which restores the saved farm map.
     internal static void Clear()
     {
         modTravelTargetId = string.Empty;
         lastSeenMapId = string.Empty;
         HoldForStoryQuest(string.Empty);
         SetMap(string.Empty);
-        Save();
+        // P is usually pressed right after launch, and the game may have been
+        // closed during a quest trip: the first toggle keeps the saved map.
+        if (keepSavedOnNextClear) keepSavedOnNextClear = false;
+        else Save();
     }
 
     // Returns true when the farm map just changed, so travel already planned
