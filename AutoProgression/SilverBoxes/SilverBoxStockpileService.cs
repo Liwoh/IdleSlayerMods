@@ -129,27 +129,63 @@ internal sealed class SilverBoxStockpileService
     }
 }
 
+// The game spawns a Silver Box in place of a Random Box while some are
+// stored (verified 2026-11-04: blocking it alone left no box at all), so a
+// blocked Silver Box is replaced with the regular spawn. If that regular
+// spawn routes back here, a plain Normal box is spawned instead.
 [HarmonyPatch(typeof(SilverRandomBoxManager), nameof(SilverRandomBoxManager.SpawnSilverRandomBox))]
 internal static class SilverRandomBoxSpawnPatch
 {
+    private static bool replacing;
+    private static bool reentered;
+    private static string loggedPath = string.Empty;
+
     private static bool Prefix(Vector2 __0, bool __1)
     {
         if (!SilverBoxStockpileService.Blocking) return true;
+        if (replacing)
+        {
+            reentered = true;
+            return false;
+        }
+
         SilverBoxStockpileService.BlockedSinceStockChange++;
         SilverBoxStockpileService.BlockedInWindow++;
-        if (SilverBoxStockpileService.BlockedInWindow == 1)
-            ProgressionLog.SilverBoxesDebug($"Silver Box spawn blocked; flag={__1}.");
+        MapController map = MapController.instance;
+        if (map == null) return false;
+        replacing = true;
+        reentered = false;
+        try
+        {
+            map.SpawnRandomBox(__0);
+            if (reentered) map.SpawnRandomBox(__0, RandomBox.Type.Normal, __1);
+        }
+        catch (System.Exception exception)
+        {
+            ProgressionLog.Exception("Silver Box replacement spawn", exception);
+        }
+        finally
+        {
+            replacing = false;
+        }
+
+        string path = reentered ? "Normal box (direct)" : "regular Random Box spawn";
+        if (path != loggedPath)
+        {
+            loggedPath = path;
+            ProgressionLog.SilverBoxesDebug($"Blocked Silver Box replaced with a {path}; flag={__1}.");
+        }
         return false;
     }
 }
 
-[HarmonyPatch(typeof(RandomBox), nameof(RandomBox.OnObjectSpawn))]
+[HarmonyPatch(typeof(MapController), nameof(MapController.SpawnRandomBox),
+    typeof(Vector2), typeof(RandomBox.Type), typeof(bool))]
 internal static class RandomBoxSpawnProbePatch
 {
-    private static void Postfix(RandomBox __instance)
+    private static void Postfix(RandomBox.Type __1)
     {
-        if (__instance == null) return;
-        string type = __instance.type.ToString();
+        string type = __1.ToString();
         SilverBoxStockpileService.SpawnsByType.TryGetValue(type, out int count);
         SilverBoxStockpileService.SpawnsByType[type] = count + 1;
     }
