@@ -130,51 +130,52 @@ internal sealed class SilverBoxStockpileService
 }
 
 // The game spawns a Silver Box in place of a Random Box while some are
-// stored (verified 2026-11-04: blocking it alone left no box at all), so a
-// blocked Silver Box is replaced with the regular spawn. If that regular
-// spawn routes back here, a plain Normal box is spawned instead.
+// stored (verified 2026-11-04: blocking it alone left no box at all, and a
+// Normal box spawned directly by the mod stayed out of reach). So the stock
+// is hidden from the regular spawn, which then makes its own box with its
+// usual setup and Golden/Silver conversion chances, and is put back after.
+[HarmonyPatch(typeof(MapController), nameof(MapController.SpawnRandomBox), typeof(Vector2))]
+internal static class RandomBoxSpawnStockHidePatch
+{
+    private static double hiddenStock = -1d;
+    private static bool logged;
+
+    private static void Prefix()
+    {
+        hiddenStock = -1d;
+        if (!SilverBoxStockpileService.Blocking) return;
+        SilverRandomBoxManager manager = SilverRandomBoxManager.instance;
+        if (manager == null || manager.silverBoxesLeft <= 0d) return;
+        hiddenStock = manager.silverBoxesLeft;
+        manager.silverBoxesLeft = 0d;
+    }
+
+    private static void Finalizer()
+    {
+        if (hiddenStock < 0d) return;
+        SilverRandomBoxManager manager = SilverRandomBoxManager.instance;
+        if (manager != null)
+        {
+            if (!logged && manager.silverBoxesLeft != 0d)
+                ProgressionLog.SilverBoxesDebug($"Stock changed while hidden from a Random Box spawn: {manager.silverBoxesLeft:0}.");
+            logged = true;
+            manager.silverBoxesLeft = hiddenStock;
+        }
+        hiddenStock = -1d;
+    }
+}
+
+// Safety net for any other path to a Silver Box spawn.
 [HarmonyPatch(typeof(SilverRandomBoxManager), nameof(SilverRandomBoxManager.SpawnSilverRandomBox))]
 internal static class SilverRandomBoxSpawnPatch
 {
-    private static bool replacing;
-    private static bool reentered;
-    private static string loggedPath = string.Empty;
-
-    private static bool Prefix(Vector2 __0, bool __1)
+    private static bool Prefix(bool __1)
     {
         if (!SilverBoxStockpileService.Blocking) return true;
-        if (replacing)
-        {
-            reentered = true;
-            return false;
-        }
-
         SilverBoxStockpileService.BlockedSinceStockChange++;
         SilverBoxStockpileService.BlockedInWindow++;
-        MapController map = MapController.instance;
-        if (map == null) return false;
-        replacing = true;
-        reentered = false;
-        try
-        {
-            map.SpawnRandomBox(__0);
-            if (reentered) map.SpawnRandomBox(__0, RandomBox.Type.Normal, __1);
-        }
-        catch (System.Exception exception)
-        {
-            ProgressionLog.Exception("Silver Box replacement spawn", exception);
-        }
-        finally
-        {
-            replacing = false;
-        }
-
-        string path = reentered ? "Normal box (direct)" : "regular Random Box spawn";
-        if (path != loggedPath)
-        {
-            loggedPath = path;
-            ProgressionLog.SilverBoxesDebug($"Blocked Silver Box replaced with a {path}; flag={__1}.");
-        }
+        if (SilverBoxStockpileService.BlockedInWindow == 1)
+            ProgressionLog.SilverBoxesDebug($"Silver Box spawn blocked; flag={__1}.");
         return false;
     }
 }
