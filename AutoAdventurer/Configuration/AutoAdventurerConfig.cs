@@ -28,6 +28,8 @@ internal sealed class AutoAdventurerConfig(string configName) : BaseConfig(confi
     internal MelonPreferences_Entry<double> PostRageObservationSeconds;
     internal MelonPreferences_Entry<bool> SkipBonusStartSlider;
     internal MelonPreferences_Entry<bool> AutoBoss;
+    internal MelonPreferences_Entry<bool> SilverDeathSawGuard;
+    internal MelonPreferences_Entry<bool> SilverDeathRestorePending;
     internal MelonPreferences_Entry<string> AutoBoostToggleKey;
     internal MelonPreferences_Entry<bool> AutoMovementEnableOnStartup;
     internal MelonPreferences_Entry<bool> WindDashRequireGrounded;
@@ -86,6 +88,11 @@ internal sealed class AutoAdventurerConfig(string configName) : BaseConfig(confi
             "Global setting with no hotkey or manual trigger. Automatically confirm the timing slider shown before supported bonus minigames whenever it appears.");
         AutoBoss = Bind(GameplaySection, "Auto Boss", true,
             "Global setting with no hotkey or manual trigger. Automatically reduce bosses to 1 HP, advance boss dialogue, perform the finishing attack, and close supported result screens whenever a boss encounter appears.");
+
+        SilverDeathSawGuard = Bind(GameplaySection, "Silver Death Saw Guard", false,
+            "Global setting. Keep the Silver Death Dark Divinity off while the Ascension upgrade that removes its saws in Spirit Boost is not bought (after an Ultra Ascension), then turn it back on once the upgrade is bought again. Only a Silver Death this setting turned off is restored; turning it on by hand is respected until the next Ultra Ascension.");
+        SilverDeathRestorePending = Bind(GameplaySection, "Silver Death Restore Pending", false,
+            "Internal state of Silver Death Saw Guard: true while the mod keeps Silver Death off. Leave it as is.");
 
         // L-controlled movement helpers belong directly below the global
         // gameplay settings in newly generated configurations.

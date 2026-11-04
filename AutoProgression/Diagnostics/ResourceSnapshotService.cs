@@ -103,6 +103,7 @@ internal sealed class ResourceSnapshotService
             $"pendingSP={Format(SlayerPoints.pre)}",
             $"USP={Format(UltraSlayerPoints.points)}",
             $"pendingUSP={Format(UltraSlayerPoints.pre)}",
+            $"spForNextUSP={Format(UltraSlayerPoints.slayerPointsForNextUSP)}",
             $"lifetimeUSP={Format(UltraSlayerPoints.lifetime)}",
             $"uspInStones={Format(UspInStonesOfTime())}",
             $"uspInUpgrades={Format(UspInUpgradesOfTime())}",

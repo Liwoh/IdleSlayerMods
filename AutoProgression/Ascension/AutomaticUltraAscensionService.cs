@@ -67,7 +67,8 @@ internal sealed class AutomaticUltraAscensionService
             nextCheckTime = now + Math.Max(PauseAfterStartSeconds, GetCheckIntervalSeconds());
             ProgressionLog.User(
                 $"Automatic Ultra Ascension started with " +
-                $"{astralKeys:0.##} Astral Keys available.");
+                $"{astralKeys:0.##} Astral Keys available; " +
+                $"pendingUSP={UltraSlayerPoints.pre:0.##}, spForNextUSP={UltraSlayerPoints.slayerPointsForNextUSP:0.###e0}.");
             return true;
         }
         catch (Exception exception)

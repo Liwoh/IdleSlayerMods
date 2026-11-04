@@ -24,6 +24,7 @@ public sealed class AutoAdventurerRuntime : MonoBehaviour
     private readonly AutomaticBoostService autoBoost = new();
     private readonly AutomaticJumpAttackService autoJumpAttack = new();
     private readonly SilverBoxQuestService silverBoxes = new();
+    private readonly SilverDeathService silverDeath = new();
     private readonly QuestElementService questElements = new();
     private readonly QuestTravelService questTravel = new();
     private readonly QuestAbilityService questAbilities = new();
@@ -81,6 +82,7 @@ public sealed class AutoAdventurerRuntime : MonoBehaviour
             // run independently from the Runner/Rage character-action guard.
             sliderSkip.Tick(Time.unscaledTime);
             autoBoss.Tick(Time.unscaledTime);
+            silverDeath.Tick(Time.unscaledTime, Plugin.Config.SilverDeathSawGuard.Value);
             silverBoxes.Tick(Time.unscaledTime,
                 Plugin.Config.EnableSilverBoxControl.Value,
                 Plugin.Config.AutoReleaseSilverBoxLock.Value,
