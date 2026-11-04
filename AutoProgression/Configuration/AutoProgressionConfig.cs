@@ -20,6 +20,7 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
     internal MelonPreferences_Entry<bool> EnableAutomaticAscension;
     internal MelonPreferences_Entry<bool> EnableAutomaticUltraAscension;
     internal MelonPreferences_Entry<int> UltraAscensionMinimumAstralKeys;
+    internal MelonPreferences_Entry<int> UltraAscensionMinimumPendingUSP;
     internal MelonPreferences_Entry<float> AutomaticAscensionSoulBonusPercent;
     internal MelonPreferences_Entry<bool> BuyAscensionSkillsAfterAutomaticAscension;
     internal MelonPreferences_Entry<bool> EnablePaidBonuses;
@@ -96,6 +97,8 @@ internal sealed class AutoProgressionConfig(string configName) : BaseConfig(conf
             "WARNING: Ultra Ascension performs a major progression reset. Automatically Ultra Ascend only after the game's native Ultra Ascension requirements are active and the current Ascension upgrades grant at least Ultra Ascension Minimum Astral Keys.", migrateLegacyValues);
         UltraAscensionMinimumAstralKeys = Bind("Ascension", "Ultra Ascension Minimum Astral Keys", 24,
             "Automatic Ultra Ascension waits until the next Ultra Ascension would grant at least this many Astral Keys (the count shown in the Ascension tree).");
+        UltraAscensionMinimumPendingUSP = Bind("Ascension", "Ultra Ascension Minimum Pending USP", 0,
+            "Automatic Ultra Ascension also waits until it would grant at least this many Ultra Slayer Points. An Ultra Ascension resets the progress toward the next USP, so 0 USP pending means that progress is lost for nothing. 0 disables this check.");
         AutomaticAscensionSoulBonusPercent = BindMigrated(
             "Ascension", "Soul Bonus Threshold Percent", "Ascension - Soul Bonus Threshold Percent", 50f,
             "Ascend when pending Slayer Points reach this percentage of lifetime Slayer Points.", migrateLegacyValues);

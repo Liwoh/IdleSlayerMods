@@ -53,11 +53,16 @@ internal sealed class AutomaticUltraAscensionService
             double astralKeys = manager.GetAstralKeys();
             int requiredAstralKeys = Math.Max(0,
                 Plugin.Config.UltraAscensionMinimumAstralKeys.Value);
+            double pendingUSP = UltraSlayerPoints.pre;
+            int requiredPendingUSP = Math.Max(0,
+                Plugin.Config.UltraAscensionMinimumPendingUSP.Value);
             ProgressionLog.User(
                 $"Automatic Ultra Ascension status: AstralKeys={astralKeys:0.##}, " +
-                $"Required={requiredAstralKeys}, Confirm={ConfirmUltraAscensionMethod.Name}.");
+                $"Required={requiredAstralKeys}, PendingUSP={pendingUSP:0.##}, " +
+                $"RequiredUSP={requiredPendingUSP}, Confirm={ConfirmUltraAscensionMethod.Name}.");
             if (double.IsNaN(astralKeys) || double.IsInfinity(astralKeys) ||
-                astralKeys < requiredAstralKeys)
+                astralKeys < requiredAstralKeys ||
+                double.IsNaN(pendingUSP) || pendingUSP < requiredPendingUSP)
                 return false;
 
             // This is the native callback bound to the confirmation action in
