@@ -144,6 +144,16 @@ public sealed class AutoBonusRunnerRuntime : MonoBehaviour
     private readonly BonusStageDetector detector = new();
     private readonly BonusRewardTargetDetector rewardTargetDetector = new();
     private readonly JumpController jumpController = new();
+    private const float CompletionStallSeconds = 3f;
+    private const float CompletionStallPositionTolerance = 0.05f;
+    private const float CompletionStallFreedDistance = 0.3f;
+    private const float CompletionStallMaximumPauseSeconds = 4f;
+    private bool completionStallTracking;
+    private float completionStallX;
+    private float completionStallSince;
+    private float completionStallPauseUntil;
+    private float completionStallEpisodeStart;
+    private int completionStallPauses;
     private readonly CompletionRewardController completionRewardController =
         new();
     private readonly BonusPlatformScanner platformScanner = new();
@@ -3921,6 +3931,8 @@ public sealed class AutoBonusRunnerRuntime : MonoBehaviour
         PlayerMovement player = PlayerMovement.instance;
         bool successfulCompletionTraversal =
             IsSuccessfulCompletionTraversal(state);
+        if (UpdateCompletionStallGuard(state, successfulCompletionTraversal))
+            return;
         bool nativeRewardActionPhase =
             IsNativeRewardActionPhase(state);
         bool lifecycleRecoveryPhase =
@@ -5842,6 +5854,93 @@ public sealed class AutoBonusRunnerRuntime : MonoBehaviour
                 Mathf.CeilToInt(plan.HoldSeconds / fixedDelta - 0.0001f),
                 1,
                 64);
+    }
+
+    // The game freezes the stage timer once a section's spheres are collected,
+    // so nothing ends the stage during this crossing. A hero wedged under an
+    // overhang gains almost no height per wall jump and is only released by
+    // falling, which the wall recovery prevents by pressing again immediately.
+    private bool UpdateCompletionStallGuard(
+        BonusStageState state,
+        bool completionTraversal)
+    {
+        if (!completionTraversal || !state.HasPlayer)
+        {
+            EndCompletionStallEpisode("the crossing ended", state);
+            completionStallTracking = false;
+            completionStallPauseUntil = 0f;
+            return false;
+        }
+
+        float now = Time.unscaledTime;
+        float x = state.PlayerPosition.x;
+        if (!completionStallTracking || Time.timeScale <= 0f)
+        {
+            completionStallTracking = true;
+            completionStallX = x;
+            completionStallSince = now;
+            return false;
+        }
+
+        float moved = Mathf.Abs(x - completionStallX);
+        if (moved >= CompletionStallFreedDistance)
+        {
+            EndCompletionStallEpisode("the hero moved forward", state);
+            completionStallX = x;
+            completionStallSince = now;
+            completionStallPauseUntil = 0f;
+            return false;
+        }
+
+        if (now < completionStallPauseUntil)
+        {
+            jumpController.Release();
+            return true;
+        }
+
+        if (moved > CompletionStallPositionTolerance)
+        {
+            completionStallX = x;
+            completionStallSince = now;
+            return false;
+        }
+
+        if (now - completionStallSince < CompletionStallSeconds)
+            return false;
+
+        if (completionStallPauses == 0)
+            completionStallEpisodeStart = completionStallSince;
+        float pauseSeconds = Mathf.Min(
+            Mathf.Pow(2f, completionStallPauses),
+            CompletionStallMaximumPauseSeconds);
+        completionStallPauses++;
+        completionStallPauseUntil = now + pauseSeconds;
+        completionStallSince = completionStallPauseUntil;
+        jumpController.Release();
+        if (learningSampleActive && learningSource == "Automatic")
+            FinishLearningSample(state, "CompletionStallGuard");
+        ResetAutomaticControlState();
+        BonusRunnerLog.User(
+            $"Completion stall guard: hero stuck, jumps paused for " +
+            $"{pauseSeconds:0.#}s. Pause={completionStallPauses}, Map=" +
+            $"{state.MapName}, Section={state.SectionIndex}, Position=" +
+            $"({state.PlayerPosition.x:F3},{state.PlayerPosition.y:F3}), " +
+            $"SpiritBoost={state.SpiritBoostEnabled}.");
+        return true;
+    }
+
+    private void EndCompletionStallEpisode(
+        string reason,
+        BonusStageState state)
+    {
+        if (completionStallPauses == 0)
+            return;
+        BonusRunnerLog.User(
+            $"Completion stall guard: released, {reason}, after " +
+            $"{completionStallPauses} pause(s) and " +
+            $"{Time.unscaledTime - completionStallEpisodeStart:F1}s. Position=" +
+            $"({state.PlayerPosition.x:F3},{state.PlayerPosition.y:F3}).");
+        completionStallPauses = 0;
     }
 
     private bool IsSuccessfulCompletionTraversal(
@@ -11193,6 +11292,9 @@ public sealed class AutoBonusRunnerRuntime : MonoBehaviour
         BonusStageState state,
         PlayerMovement player)
     {
+        if (Time.unscaledTime < completionStallPauseUntil)
+            return false;
+
         // A wall jump is valid only while an automatic board trajectory is
         // actively trying to reach its recorded target. Pit/death walls must
         // never manufacture a new route by themselves.
