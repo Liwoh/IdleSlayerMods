@@ -154,6 +154,20 @@ public sealed class AutoBonusRunnerRuntime : MonoBehaviour
     private float completionStallPauseUntil;
     private float completionStallEpisodeStart;
     private int completionStallPauses;
+    private const float SectionWatchSeconds = 300f;
+    private const float SectionWatchDiagnosticSeconds = 60f;
+    private const float SectionWatchStuckSeconds = 3f;
+    private const float SectionWatchJumpSeconds = 0.6f;
+    private int sectionWatchIndex = -1;
+    private float sectionWatchElapsed;
+    private float sectionWatchLastSeen = -1f;
+    private float sectionWatchNextDiagnostic;
+    private float sectionWatchBestX;
+    private float sectionWatchStuckElapsed;
+    private float sectionWatchActionUntil;
+    private bool sectionWatchActionIsJump;
+    private int sectionWatchActions;
+    private float sectionWatchEpisodeStart;
     private readonly CompletionRewardController completionRewardController =
         new();
     private readonly BonusPlatformScanner platformScanner = new();
@@ -3931,7 +3945,10 @@ public sealed class AutoBonusRunnerRuntime : MonoBehaviour
         PlayerMovement player = PlayerMovement.instance;
         bool successfulCompletionTraversal =
             IsSuccessfulCompletionTraversal(state);
-        if (UpdateCompletionStallGuard(state, successfulCompletionTraversal))
+        if (UpdateSectionWatchdog(state, player, successfulCompletionTraversal))
+            return;
+        if (sectionWatchElapsed < SectionWatchSeconds &&
+            UpdateCompletionStallGuard(state, successfulCompletionTraversal))
             return;
         bool nativeRewardActionPhase =
             IsNativeRewardActionPhase(state);
@@ -5941,6 +5958,142 @@ public sealed class AutoBonusRunnerRuntime : MonoBehaviour
             $"{Time.unscaledTime - completionStallEpisodeStart:F1}s. Position=" +
             $"({state.PlayerPosition.x:F3},{state.PlayerPosition.y:F3}).");
         completionStallPauses = 0;
+    }
+
+    // A section normally lasts under two minutes. Stalls outside the final
+    // crossing were seen with the Debug log off, so this writes its own
+    // evidence, then alternates the two known ways out: holding jumps back
+    // (the hero wedged by repeated wall jumps) and a single jump (a manual
+    // click freed the hero on 2026-11-11).
+    private bool UpdateSectionWatchdog(
+        BonusStageState state,
+        PlayerMovement player,
+        bool completionTraversal)
+    {
+        float now = Time.unscaledTime;
+        bool continuous = sectionWatchLastSeen >= 0f &&
+            now - sectionWatchLastSeen < 2f;
+        float delta = continuous ? now - sectionWatchLastSeen : 0f;
+        sectionWatchLastSeen = now;
+        if (!state.HasPlayer || state.SectionIndex is < 0 or > 3)
+            return false;
+
+        float x = state.PlayerPosition.x;
+        if (!continuous || state.SectionIndex != sectionWatchIndex)
+        {
+            EndSectionWatchEpisode("the section changed", state);
+            sectionWatchIndex = state.SectionIndex;
+            sectionWatchElapsed = 0f;
+            sectionWatchNextDiagnostic = SectionWatchSeconds;
+            sectionWatchBestX = x;
+            sectionWatchStuckElapsed = 0f;
+            sectionWatchActionUntil = 0f;
+            return false;
+        }
+
+        if (Time.timeScale <= 0f)
+            return false;
+        sectionWatchElapsed += delta;
+        if (x < sectionWatchBestX - 2f)
+            sectionWatchBestX = x;
+        bool progressed = x >= sectionWatchBestX + CompletionStallFreedDistance;
+        if (progressed)
+        {
+            sectionWatchBestX = x;
+            sectionWatchStuckElapsed = 0f;
+            if (sectionWatchActions > 0)
+                EndSectionWatchEpisode("the hero moved forward", state);
+        }
+        else
+        {
+            sectionWatchStuckElapsed += delta;
+        }
+
+        if (sectionWatchElapsed < SectionWatchSeconds)
+            return false;
+
+        if (sectionWatchElapsed >= sectionWatchNextDiagnostic)
+        {
+            sectionWatchNextDiagnostic =
+                sectionWatchElapsed + SectionWatchDiagnosticSeconds;
+            BonusRunnerLog.User(
+                $"Section watchdog: section {state.SectionIndex + 1} running for " +
+                $"{sectionWatchElapsed / 60f:F1} min. Map={state.MapName}, " +
+                $"GameState={state.GameStateName}, Position=" +
+                $"({x:F3},{state.PlayerPosition.y:F3}), Velocity=" +
+                $"({state.PlayerVelocity.x:F2},{state.PlayerVelocity.y:F2}), " +
+                $"Grounded={state.IsGrounded}, BestX={sectionWatchBestX:F3}, " +
+                $"StuckFor={sectionWatchStuckElapsed:F0}s, Timer=" +
+                $"{state.CurrentTime:F2}/{state.MaximumTime:F0}, " +
+                $"TimerVisible={state.IsTimerVisible}, Spheres=" +
+                $"{state.CollectedSpheres}/{state.RequiredSpheres:0.#}, " +
+                $"CompletionTraversal={completionTraversal}, SpiritBoost=" +
+                $"{state.SpiritBoostEnabled}, FellOff={state.CharacterFellOff}, " +
+                $"Reward[Wait={state.WaitingForRewardZone},Entered=" +
+                $"{state.RewardZoneEntered},Giving={state.GivingRewards}], " +
+                $"HoldingJump={jumpController.IsHoldingJump}, " +
+                $"Actions={sectionWatchActions}.");
+        }
+
+        if (now < sectionWatchActionUntil)
+        {
+            if (sectionWatchActionIsJump)
+                jumpController.Update(player);
+            else
+                jumpController.Release();
+            return true;
+        }
+
+        if (sectionWatchStuckElapsed < SectionWatchStuckSeconds)
+            return false;
+
+        if (sectionWatchActions == 0)
+            sectionWatchEpisodeStart = now;
+        sectionWatchActions++;
+        sectionWatchStuckElapsed = 0f;
+        sectionWatchActionIsJump = sectionWatchActions % 2 == 0;
+        jumpController.Release();
+        if (learningSampleActive && learningSource == "Automatic")
+            FinishLearningSample(state, "SectionWatchdog");
+        ResetAutomaticControlState();
+        float duration;
+        if (sectionWatchActionIsJump)
+        {
+            duration = SectionWatchJumpSeconds;
+            jumpController.Press(player, 0.18f, "SectionWatchdog");
+        }
+        else
+        {
+            duration = sectionWatchActions == 1 ? 2f : 4f;
+        }
+        sectionWatchActionUntil = now + duration;
+        if (sectionWatchActions <= 6 || sectionWatchActions % 50 == 0)
+        {
+            BonusRunnerLog.User(
+                $"Section watchdog: hero stuck, " +
+                (sectionWatchActionIsJump
+                    ? "one jump pressed"
+                    : $"jumps paused for {duration:0.#}s") +
+                $". Action={sectionWatchActions}, Section=" +
+                $"{state.SectionIndex + 1}, Position=({x:F3}," +
+                $"{state.PlayerPosition.y:F3}), SpiritBoost=" +
+                $"{state.SpiritBoostEnabled}.");
+        }
+        return true;
+    }
+
+    private void EndSectionWatchEpisode(
+        string reason,
+        BonusStageState state)
+    {
+        if (sectionWatchActions == 0)
+            return;
+        BonusRunnerLog.User(
+            $"Section watchdog: released, {reason}, after " +
+            $"{sectionWatchActions} action(s) and " +
+            $"{Time.unscaledTime - sectionWatchEpisodeStart:F1}s. Position=" +
+            $"({state.PlayerPosition.x:F3},{state.PlayerPosition.y:F3}).");
+        sectionWatchActions = 0;
     }
 
     private bool IsSuccessfulCompletionTraversal(
